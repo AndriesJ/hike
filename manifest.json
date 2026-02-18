@@ -1,23 +1,22 @@
 {
-  "name": "Hike Explorer App",
+  "name": "Hiking Explorer AJ-ELM",
   "short_name": "HikeExp",
-  "description": "Trail maps for AJ and ELM",
-  "start_url": "index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3bb2d0",
-  "orientation": "portrait",
   "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3061/3061140.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3061/3061140.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3061/3061140.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "purpose": "maskable"
     }
   ]
 }
