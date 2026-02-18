@@ -16,20 +16,15 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
         #map { width: 100vw; height: 100vh; }
-
         .overlay {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
             background: white; padding: 15px; border-radius: 0 0 20px 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;
         }
         .collapsed { transform: translateY(-85%); }
-        
         select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; font-weight: bold; }
         #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 10px; padding-bottom: 5px; }
-        .weather-card { text-align: center; min-width: 55px; background: #f8f9fa; padding: 8px; border-radius: 8px; border: 1px solid #eee; font-size: 12px; }
-        
-        /* Custom Popup Style for Mobile */
-        .maplibregl-popup-content { padding: 15px; border-radius: 12px; font-size: 14px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .weather-card { text-align: center; min-width: 55px; background: #f8f9fa; padding: 8px; border-radius: 8px; border: 1px solid #eee; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -37,13 +32,13 @@
 <div class="overlay" id="main-overlay">
     <div id="overlay-content">
         <h3 style="margin:0; color: #333;" id="trail-title">Hike Explorer</h3>
+        
         <select id="trail-select" onchange="switchTrail(this.value)">
-            <option value="kylemore">Kylemore Waterfall</option>
-            <option value="lionshead">Lion's Head</option>
-            <option value="jonkershoek">Jonkershoek Reserve</option>
+            <option>Loading trails...</option>
         </select>
+
         <div id="weather-container"></div>
-        <div id="status-log" style="font-size: 10px; color: #aaa; margin-top: 8px; text-transform: uppercase;">Initializing GPS...</div>
+        <div id="status-log" style="font-size: 10px; color: #aaa; margin-top: 8px; text-transform: uppercase;">System Ready</div>
     </div>
     <button onclick="toggleOverlay()" id="toggle-btn" style="background:none; border:none; color:#ddd; width:100%; padding:5px; font-size: 10px;">⬤ MENU ⬤</button>
 </div>
@@ -55,16 +50,10 @@
 
     // 1. PWA SERVICE WORKER
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js').then(() => log("PWA Active"));
+        navigator.serviceWorker.register('./service-worker.js');
     }
 
-    // 2. CONFIG
-    const trailIndex = {
-        "kylemore": "./trails/kylemore.json",
-        "lionshead": "./trails/lionshead.json",
-        "jonkershoek": "./trails/jonkershoek.json"
-    };
-
+    // 2. MAP SETUP
     const map = new maplibregl.Map({
         container: 'map',
         style: {
@@ -73,10 +62,57 @@
             "layers": [{ "id": "osm-layer", "type": "raster", "source": "osm" }]
         },
         center: [18.9703, -33.9264],
-        zoom: 14
+        zoom: 13
     });
 
-    // 3. WEATHER
+    // 3. DYNAMIC TRAIL LOADING
+    async function initTrailSystem() {
+        try {
+            // Fetch the list of trails
+            const response = await fetch('./trails/list.json');
+            const trailList = await response.json();
+            
+            const select = document.getElementById('trail-select');
+            select.innerHTML = ''; // Clear "Loading..."
+
+            trailList.forEach(trail => {
+                const opt = document.createElement('option');
+                opt.value = trail.id;
+                opt.innerHTML = trail.name;
+                select.appendChild(opt);
+            });
+
+            // Load the first trail in the list automatically
+            if(trailList.length > 0) switchTrail(trailList[0].id);
+
+        } catch (e) {
+            log("Error loading trail list.json");
+            console.error(e);
+        }
+    }
+
+    async function switchTrail(id) {
+        log("Fetching trail: " + id);
+        try {
+            const res = await fetch(`./trails/${id}.json`);
+            const data = await res.json();
+            
+            document.getElementById('trail-title').innerText = data.name;
+            map.flyTo({ center: data.center, zoom: 14 });
+            
+            if (!map.getSource('hike-pts')) {
+                map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
+                map.addLayer({ 
+                    id: 'hike-layer', type: 'circle', source: 'hike-pts', 
+                    paint: { 'circle-radius': 14, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } 
+                });
+            } else {
+                map.getSource('hike-pts').setData(data.waypoints);
+            }
+            fetchWeather(data.center[0], data.center[1]);
+        } catch(e) { log("Trail file not found"); }
+    }
+
     async function fetchWeather(lon, lat) {
         try {
             const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&timezone=auto`);
@@ -85,82 +121,37 @@
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
                 const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
-                const code = data.daily.weathercode[i];
-                let icon = code > 3 ? "☁️" : "☀️";
-                container.innerHTML += `<div class="weather-card"><b>${date}</b><br><span style="font-size:18px;">${icon}</span><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
             }
         } catch(e) { log("Weather Offline"); }
     }
 
-    // 4. TRAIL LOGIC
-    async function switchTrail(key) {
-        log("Fetching " + key + "...");
-        try {
-            const res = await fetch(trailIndex[key]);
-            const data = await res.json();
-            document.getElementById('trail-title').innerText = data.name;
-            map.flyTo({ center: data.center, zoom: 14 });
-            
-            if (!map.getSource('hike-pts')) {
-                map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
-                map.addLayer({ 
-                    id: 'hike-layer', 
-                    type: 'circle', 
-                    source: 'hike-pts', 
-                    paint: { 
-                        'circle-radius': 14, // Larger for easier tapping
-                        'circle-color': '#FF5252', 
-                        'circle-stroke-width': 3, 
-                        'circle-stroke-color': '#fff' 
-                    } 
-                });
-            } else {
-                map.getSource('hike-pts').setData(data.waypoints);
-            }
-            fetchWeather(data.center[0], data.center[1]);
-            log("Trail Ready");
-        } catch(e) { log("Error: JSON missing or malformed"); }
-    }
-
-    // 5. GPS & INTERACTION
     map.on('load', () => {
-        // First Layer: User Dot (Bottom)
+        initTrailSystem(); // Start the dynamic loading
+
+        // GPS Layer
         map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
         map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 10, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
 
-        // Second Layer: Waypoints (Top - so they are clickable)
-        switchTrail('kylemore');
-
         if ("geolocation" in navigator) {
-            navigator.geolocation.watchPosition(
-                (pos) => {
-                    log("GPS Updated");
-                    map.getSource('me').setData({
-                        "type": "FeatureCollection",
-                        "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": [pos.coords.longitude, pos.coords.latitude] } }]
-                    });
-                },
-                (err) => log("Location Off"),
-                { enableHighAccuracy: true }
-            );
+            navigator.geolocation.watchPosition((pos) => {
+                map.getSource('me').setData({
+                    "type": "FeatureCollection",
+                    "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": [pos.coords.longitude, pos.coords.latitude] } }]
+                });
+            }, null, { enableHighAccuracy: true });
         }
 
-        // TAPPING WAYPOINTS
         map.on('click', 'hike-layer', (e) => {
             const props = e.features[0].properties;
-            const title = props.name || "Waypoint";
-            const info = props.desc || "Hiker waypoint";
-
             new maplibregl.Popup({ closeButton: false })
                 .setLngLat(e.lngLat)
-                .setHTML(`<div style="font-weight:bold; color:#FF5252;">${title}</div><div>${info}</div>`)
+                .setHTML(`<b>${props.name}</b><br>${props.desc || ''}`)
                 .addTo(map);
         });
     });
 
-    function toggleOverlay() {
-        document.getElementById('main-overlay').classList.toggle('collapsed');
-    }
+    function toggleOverlay() { document.getElementById('main-overlay').classList.toggle('collapsed'); }
 </script>
 </body>
 </html>
