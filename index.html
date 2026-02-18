@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3061/3061140.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AJ ELM Hike</title>
+    <title>Hike Explorer PWA</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3bb2d0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
     <link href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet' />
@@ -18,24 +16,16 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
         #map { width: 100vw; height: 100vh; }
-
         .overlay {
             position: absolute; top: 15px; left: 15px; z-index: 10;
             background: white; padding: 15px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 260px;
             transition: transform 0.3s ease;
         }
-
         .collapsed { transform: translateY(-80%); }
-        
-        select, button { 
-            width: 100%; padding: 12px; margin-top: 10px; 
-            border-radius: 8px; border: 1px solid #ddd; font-size: 15px;
-        }
-
+        select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 15px; }
         #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 10px; padding-bottom: 5px; }
         .weather-card { text-align: center; min-width: 50px; background: #f8f9fa; padding: 5px; border-radius: 6px; }
-
         @media (max-width: 800px) {
             .overlay { top: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 15px 15px; }
             .maplibregl-ctrl-top-right { top: auto !important; bottom: 30px !important; }
@@ -45,29 +35,49 @@
 <body>
 
 <div class="overlay" id="main-overlay">
-    <h3 style="margin:0" id="trail-title">Hike Explorer</h3>
-    
-    <select id="trail-select" onchange="switchTrail(this.value)">
-        <option value="kylemore">Kylemore Waterfall</option>
-        <option value="lionshead">Lion's Head</option>
-        <option value="jonkershoek">Jonkershoek Reserve</option>
-    </select>
-
-    <div id="weather-container">Loading weather...</div>
-
-    <button onclick="prepOffline()" style="background:#e8f5e9; color:#2e7d32;">📥 Save for Offline</button>
-    <button onclick="toggleOverlay()" id="toggle-btn" style="background:#eee;">Hide Menu</button>
+    <div id="overlay-content">
+        <h3 style="margin:0" id="trail-title">Hike Explorer</h3>
+        <select id="trail-select" onchange="switchTrail(this.value)">
+            <option value="kylemore">Kylemore Waterfall</option>
+            <option value="lionshead">Lion's Head</option>
+            <option value="jonkershoek">Jonkershoek Reserve</option>
+        </select>
+        <div id="weather-container">Loading weather...</div>
+        <div id="install-area"></div> <button onclick="prepOffline()" style="background:#e8f5e9; color:#2e7d32;">📥 Save for Offline</button>
+    </div>
+    <button onclick="toggleOverlay()" id="toggle-btn" style="background:#eee; border:none; margin-top:10px;">Hide Menu</button>
 </div>
 
 <div id="map"></div>
 
 <script>
-    // 1. REGISTER PWA SERVICE WORKER
+    // 1. SERVICE WORKER
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js');
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(reg => console.log('SW Registered'))
+                .catch(err => console.log('SW Failed', err));
+        });
     }
 
-    // 2. APP STATE
+    // 2. INSTALL PROMPT LOGIC
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const installArea = document.getElementById('install-area');
+        installArea.innerHTML = `<button id="btn-install" style="background:#3bb2d0; color:white; font-weight:bold;">✨ INSTALL APP</button>`;
+        
+        document.getElementById('btn-install').addEventListener('click', () => {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choice) => {
+                if (choice.outcome === 'accepted') installArea.innerHTML = '';
+                deferredPrompt = null;
+            });
+        });
+    });
+
+    // 3. MAP & APP LOGIC
     const trailIndex = {
         "kylemore": "trails/kylemore.json",
         "lionshead": "trails/lionshead.json",
@@ -84,10 +94,8 @@
         center: [18.9703, -33.9264],
         zoom: 13
     });
-
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // 3. WEATHER LOGIC (Open-Meteo)
     async function fetchWeather(lon, lat) {
         const container = document.getElementById('weather-container');
         try {
@@ -96,44 +104,33 @@
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
                 const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
-                const temp = Math.round(data.daily.temperature_2m_max[i]);
-                const code = data.daily.weathercode[i];
-                let icon = code > 3 ? "🌧️" : "☀️";
-                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${icon}<br>${temp}°</div>`;
+                let icon = data.daily.weathercode[i] > 3 ? "🌧️" : "☀️";
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${icon}<br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
             }
         } catch(e) { container.innerHTML = "Weather error"; }
     }
 
-    // 4. TRAIL SWITCHER
     async function switchTrail(key) {
-        try {
-            const res = await fetch(trailIndex[key]);
-            const data = await res.json();
-            document.getElementById('trail-title').innerText = data.name;
-            map.flyTo({ center: data.center, zoom: 14 });
-            
-            // Source management
-            if (!map.getSource('hike-pts')) {
-                map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
-                map.addLayer({ id: 'hike-layer', type: 'circle', source: 'hike-pts', paint: { 'circle-radius': 8, 'circle-color': '#FF5252' } });
-            } else {
-                map.getSource('hike-pts').setData(data.waypoints);
-            }
-            
-            fetchWeather(data.center[0], data.center[1]);
-        } catch(e) { console.error("Trail load error", e); }
+        const res = await fetch(trailIndex[key]);
+        const data = await res.json();
+        document.getElementById('trail-title').innerText = data.name;
+        map.flyTo({ center: data.center, zoom: 14 });
+        if (!map.getSource('hike-pts')) {
+            map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
+            map.addLayer({ id: 'hike-layer', type: 'circle', source: 'hike-pts', paint: { 'circle-radius': 8, 'circle-color': '#FF5252' } });
+        } else {
+            map.getSource('hike-pts').setData(data.waypoints);
+        }
+        fetchWeather(data.center[0], data.center[1]);
     }
 
-    // 5. UI HELPERS
     function toggleOverlay() {
         const el = document.getElementById('main-overlay');
         el.classList.toggle('collapsed');
         document.getElementById('toggle-btn').innerText = el.classList.contains('collapsed') ? "Show Menu" : "Hide Menu";
     }
 
-    function prepOffline() {
-        alert("Zoom in and out on this trail area. The map will store these views for offline use.");
-    }
+    function prepOffline() { alert("Panning map now caches tiles for offline."); }
 
     map.on('load', () => switchTrail('kylemore'));
 </script>
