@@ -1,0 +1,14 @@
+{
+    "name": "Jonkershoek Panorama",
+    "center": [18.9550, -33.9650],
+    "waypoints": {
+        "type": "FeatureCollection",
+        "features": [
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9550, -33.9650] }, "properties": { "name": "Reserve Gate", "desc": "Pay your entry fee here." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9620, -33.9720] }, "properties": { "name": "Pine Forest", "desc": "Cool shaded section of the trail." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9750, -33.9850] }, "properties": { "name": "Berg River Neck", "desc": "High point with valley views." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9800, -33.9900] }, "properties": { "name": "Guardian Peak", "desc": "Massive rock formations." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9700, -33.9750] }, "properties": { "name": "Eerste River", "desc": "Fresh mountain water source." } }
+        ]
+    }
+}
