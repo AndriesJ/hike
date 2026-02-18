@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AJ ELM Hike Explorer</title>
+    <title>Hike Explorer PWA</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3bb2d0">
@@ -22,7 +22,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;
         }
         .collapsed { transform: translateY(-85%); }
-        select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; font-weight: bold; }
+        select, button, input { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
         #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 10px; padding-bottom: 5px; }
         .weather-card { text-align: center; min-width: 55px; background: #f8f9fa; padding: 8px; border-radius: 8px; border: 1px solid #eee; font-size: 11px; }
     </style>
@@ -31,14 +31,17 @@
 
 <div class="overlay" id="main-overlay">
     <div id="overlay-content">
-        <h3 style="margin:0; color: #333;" id="trail-title">Hike Explorer</h3>
+        <h3 style="margin:0 0 10px 0; color: #333;" id="trail-title">Hike Explorer</h3>
         
-        <select id="trail-select" onchange="switchTrail(this.value)">
-            <option>Loading trails...</option>
-        </select>
+        <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+            <input type="text" id="search-input" placeholder="Find a place..." style="margin-top:0;">
+            <button onclick="searchLocation()" style="width: 60px; margin-top:0; background:#3bb2d0; color:white; border:none;">GO</button>
+        </div>
+
+        <select id="trail-select" onchange="switchTrail(this.value)"></select>
 
         <div id="weather-container"></div>
-        <div id="status-log" style="font-size: 10px; color: #aaa; margin-top: 8px; text-transform: uppercase;">System Ready</div>
+        <div id="status-log" style="font-size: 10px; color: #aaa; margin-top: 8px; text-transform: uppercase;">Ready</div>
     </div>
     <button onclick="toggleOverlay()" id="toggle-btn" style="background:none; border:none; color:#ddd; width:100%; padding:5px; font-size: 10px;">⬤ MENU ⬤</button>
 </div>
@@ -48,12 +51,7 @@
 <script>
     const log = (msg) => document.getElementById('status-log').innerText = msg;
 
-    // 1. PWA SERVICE WORKER
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js');
-    }
-
-    // 2. MAP SETUP
+    // 1. MAP SETUP
     const map = new maplibregl.Map({
         container: 'map',
         style: {
@@ -65,15 +63,40 @@
         zoom: 13
     });
 
-    // 3. DYNAMIC TRAIL LOADING
+    // 2. SEARCH FUNCTION (Nominatim API)
+    async function searchLocation() {
+        const query = document.getElementById('search-input').value;
+        if (!query) return;
+        
+        log("Searching...");
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+            const data = await res.json();
+            
+            if (data.length > 0) {
+                const result = data[0];
+                map.flyTo({
+                    center: [parseFloat(result.lon), parseFloat(result.lat)],
+                    zoom: 15,
+                    essential: true
+                });
+                log("Found: " + result.display_name.split(',')[0]);
+                fetchWeather(result.lon, result.lat); // Load weather for searched area
+            } else {
+                log("Place not found");
+            }
+        } catch (e) {
+            log("Search Error");
+        }
+    }
+
+    // 3. DYNAMIC TRAILS & WEATHER
     async function initTrailSystem() {
         try {
-            // Fetch the list of trails
             const response = await fetch('./trails/list.json');
             const trailList = await response.json();
-            
             const select = document.getElementById('trail-select');
-            select.innerHTML = ''; // Clear "Loading..."
+            select.innerHTML = ''; 
 
             trailList.forEach(trail => {
                 const opt = document.createElement('option');
@@ -82,21 +105,15 @@
                 select.appendChild(opt);
             });
 
-            // Load the first trail in the list automatically
             if(trailList.length > 0) switchTrail(trailList[0].id);
-
-        } catch (e) {
-            log("Error loading trail list.json");
-            console.error(e);
-        }
+        } catch (e) { log("Error loading trail list"); }
     }
 
     async function switchTrail(id) {
-        log("Fetching trail: " + id);
+        log("Loading Trail...");
         try {
             const res = await fetch(`./trails/${id}.json`);
             const data = await res.json();
-            
             document.getElementById('trail-title').innerText = data.name;
             map.flyTo({ center: data.center, zoom: 14 });
             
@@ -104,13 +121,13 @@
                 map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
                 map.addLayer({ 
                     id: 'hike-layer', type: 'circle', source: 'hike-pts', 
-                    paint: { 'circle-radius': 14, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } 
+                    paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } 
                 });
             } else {
                 map.getSource('hike-pts').setData(data.waypoints);
             }
             fetchWeather(data.center[0], data.center[1]);
-        } catch(e) { log("Trail file not found"); }
+        } catch(e) { log("Trail Error"); }
     }
 
     async function fetchWeather(lon, lat) {
@@ -127,9 +144,9 @@
     }
 
     map.on('load', () => {
-        initTrailSystem(); // Start the dynamic loading
-
-        // GPS Layer
+        initTrailSystem();
+        
+        // GPS Dot
         map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
         map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 10, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
 
@@ -143,11 +160,7 @@
         }
 
         map.on('click', 'hike-layer', (e) => {
-            const props = e.features[0].properties;
-            new maplibregl.Popup({ closeButton: false })
-                .setLngLat(e.lngLat)
-                .setHTML(`<b>${props.name}</b><br>${props.desc || ''}`)
-                .addTo(map);
+            new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${e.features[0].properties.name}</b>`).addTo(map);
         });
     });
 
