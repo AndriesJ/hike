@@ -1,0 +1,14 @@
+{
+    "name": "Cecelia Forset",
+    "center": [18.426516634716908, -33.998044097191354, ],
+    "waypoints": {
+        "type": "FeatureCollection",
+        "features": [
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3890, -33.9350] }, "properties": { "name": "Main Entrance", "desc": "Start of the gravel jeep track." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3855, -33.9365] }, "properties": { "name": "Paraglider Launch", "desc": "Watch the jumpers on a windy day." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3872, -33.9348] }, "properties": { "name": "The Staples", "desc": "The climbing section with metal rungs." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3885, -33.9355] }, "properties": { "name": "Cave View", "desc": "Look left for the small cave in the rock." } },
+            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3892, -33.9349] }, "properties": { "name": "Summit Peak", "desc": "360-degree views of Cape Town." } }
+        ]
+    }
+}
