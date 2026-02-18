@@ -1,6 +1,6 @@
 {
     "name": "Cecelia Forset",
-    "center": [18.426516634716908, -33.998044097191354, ],
+    "center": [18.426516634716908, -33.998044097191354 ],
     "waypoints": {
         "type": "FeatureCollection",
         "features": [
