@@ -1,0 +1,86 @@
+// 1. Load existing user waypoints from localStorage or start empty
+const savedData = localStorage.getItem('hiking_user_waypoints');
+let userWaypoints = savedData ? JSON.parse(savedData) : {
+    "type": "FeatureCollection",
+    "features": []
+};
+
+// 2. Main Trail Data
+const hikeWaypoints = {
+    "type": "FeatureCollection",
+    "features": [
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.970347, -33.926401] }, "properties": { "name": "First Split", "desc": "Steep ascent begins." } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.972991, -33.9263] }, "properties": { "name": "The Upper turn", "desc": "Halfway mark!" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.97644 ,-33.9293]}, "properties": { "name": "WaterFall", "desc": "The highest point." } }
+    ]
+};
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+        "version": 8,
+        "sources": {
+            "osm-tiles": {
+                "type": "raster",
+                "tiles": ["https://tile.openstreetmap.org{z}/{x}/{y}.png"],
+                "tileSize": 256,
+                "attribution": "&copy; OpenStreetMap contributors"
+            }
+        },
+        "layers": [{ "id": "base-layer", "type": "raster", "source": "osm-tiles" }]
+    },
+    center: [18.970347, -33.926401],
+    zoom: 13
+});
+
+map.on('load', () => {
+    // Add Sources
+    map.addSource('hike-pts', { type: 'geojson', data: hikeWaypoints });
+    map.addSource('user-pts', { type: 'geojson', data: userWaypoints });
+
+    // Layer: Static Trail Points
+    map.addLayer({
+        id: 'poi-layer',
+        type: 'circle',
+        source: 'hike-pts',
+        paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#ffffff' }
+    });
+
+    // Layer: User-added Points
+    map.addLayer({
+        id: 'user-layer',
+        type: 'circle',
+        source: 'user-pts',
+        paint: { 'circle-radius': 10, 'circle-color': '#3bb2d0', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' }
+    });
+
+    // Add Waypoint Interaction
+    map.on('click', (e) => {
+        // Check if we clicked an existing point first
+        const features = map.queryRenderedFeatures(e.point, { layers: ['poi-layer', 'user-layer'] });
+        if (features.length > 0) return; // Don't add a new point if clicking an old one
+
+        const coords = [e.lngLat.lng, e.lngLat.lat];
+        const newPoint = {
+            "type": "Feature",
+            "geometry": { "type": "Point", "coordinates": coords },
+            "properties": { "name": "User Waypoint", "desc": "Added by you", "id": Date.now() }
+        };
+
+        userWaypoints.features.push(newPoint);
+        
+        // Update Map
+        map.getSource('user-pts').setData(userWaypoints);
+        
+        // SAVE TO LOCAL STORAGE
+        localStorage.setItem('hiking_user_waypoints', JSON.stringify(userWaypoints));
+        console.log("Saved to local storage!");
+    });
+
+    // Interaction for clicking existing points
+    map.on('click', 'poi-layer', (e) => {
+        const props = e.features[0].properties;
+        document.getElementById('info').innerHTML = `<b>Reached:</b> ${props.name}<br><small>${props.desc}</small>`;
+        new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<strong>${props.name}</strong>`).addTo(map);
+    });
+});

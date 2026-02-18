@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Hiking Route POC - Verified</title>
+    <!-- Using a stable, high-availability CDN -->
+<script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
+<link href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet' />
+    <style>
+        /* Force the map to fill the entire browser window */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+        #map { 
+            width: 100vw; 
+            height: 100vh; 
+            background-color: #e0e0e0; /* Visual fallback if tiles fail */
+        }
+        .overlay {
+            position: absolute; top: 15px; left: 15px; z-index: 10;
+            background: rgba(255, 255, 255, 0.9); padding: 15px; 
+            border-radius: 10px; font-family: -apple-system, sans-serif;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            max-width: 250px;
+        }
+        .status-tag { color: #2e7d32; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay">
+        <h3 style="margin-top:0">Kylemore Waterfal Trail</h3>
+        <div id="info">Tap a <span style="color:red">●</span> to check in.</div>
+        <p id="completion" class="status-tag"></p>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        // 1. Initialize Map with a Manual Style Object (Bypasses CORB/CORS style issues)
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                "version": 8,
+                "sources": {
+                    "osm-tiles": {
+    "type": "raster",
+    "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], // Added / after .org
+    "tileSize": 256,
+    "attribution": "&copy; OpenStreetMap contributors"
+}
+
+                },
+                "layers": [{
+                    "id": "base-layer",
+                    "type": "raster",
+                    "source": "osm-tiles"
+                }]
+            },
+            center: [18.970347, -33.926401], // Kylemore  coordinates
+            zoom: 13
+        });
+
+        // 2. Sample Hiking Route Data (Waypoints)
+        const hikeWaypoints = {
+            "type": "FeatureCollection",
+            "features": [
+			// -33.926401, 18.970347
+                { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.970347, -33.926401] }, "properties": { "name": "First Split", "desc": "Steep ascent begins." } },
+				//-33.92634065093555, 18.9729914956139
+                { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.972991, -33.9263] }, "properties": { "name": "The Upper turn", "desc": "Halfway mark!" } },
+				//-33.929315039065166, 18.976445942403195
+                { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.97644 ,-33.9293]}, "properties": { "name": "WaterFall", "desc": "The highest point." } }
+            ]
+        };
+
+        map.on('load', () => {
+            // 3. Add Waypoints to the Map
+            map.addSource('hike-pts', { type: 'geojson', data: hikeWaypoints });
+
+            map.addLayer({
+                id: 'poi-layer',
+                type: 'circle',
+                source: 'hike-pts',
+                paint: {
+                    'circle-radius': 12,
+                    'circle-color': '#FF5252',
+                    'circle-stroke-width': 3,
+                    'circle-stroke-color': '#ffffff'
+                }
+            });
+
+            // 4. Interaction Logic
+            map.on('click', 'poi-layer', (e) => {
+                const props = e.features[0].properties;
+                
+                // Update the UI Overlay
+                document.getElementById('info').innerHTML = `<b>Reached:</b> ${props.name}<br><small>${props.desc}</small>`;
+                document.getElementById('completion').innerText = "✓ Section Completed";
+
+                // Standard Popup
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(`<strong>${props.name}</strong><br>Waymarked!`)
+                    .addTo(map);
+            });
+
+            // Change cursor on hover
+            map.on('mouseenter', 'poi-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', 'poi-layer', () => { map.getCanvas().style.cursor = ''; });
+        });
+		
+		// 1. Create an empty list to store user-added waypoints
+let userWaypoints = {
+    "type": "FeatureCollection",
+    "features": []
+};
+
+map.on('load', () => {
+    // 2. Add a new empty source for user-created points
+    map.addSource('user-pts', { type: 'geojson', data: userWaypoints });
+
+    map.addLayer({
+        id: 'user-layer',
+        type: 'circle',
+        source: 'user-pts',
+        paint: {
+            'circle-radius': 10,
+            'circle-color': '#3bb2d0', // Different color for user points
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#fff'
+        }
+    });
+
+    // 3. LISTEN FOR CLICK TO ADD WAYPOINT
+    map.on('click', (e) => {
+        // Capture the exact [longitude, latitude] clicked
+        const coords = [e.lngLat.lng, e.lngLat.lat];
+
+        // Create a new GeoJSON feature
+        const newPoint = {
+            "type": "Feature",
+            "geometry": { "type": "Point", "coordinates": coords },
+            "properties": { "name": "New Waypoint", "id": Date.now() }
+        };
+
+        // Add to our local list
+        userWaypoints.features.push(newPoint);
+
+        // REFRESH THE MAP SOURCE (This makes the dot appear instantly)
+        map.getSource('user-pts').setData(userWaypoints);
+
+        console.log("Waypoint added at:", coords);
+    });
+});
+
+    </script>
+</body>
+</html>
