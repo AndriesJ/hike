@@ -24,28 +24,28 @@
         }
         .collapsed { transform: translateY(-85%); }
         
-        select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
-        #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 10px; }
-        .weather-card { text-align: center; min-width: 50px; background: #f8f9fa; padding: 5px; border-radius: 6px; font-size: 12px;}
+        select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; font-weight: bold; }
+        #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 10px; padding-bottom: 5px; }
+        .weather-card { text-align: center; min-width: 55px; background: #f8f9fa; padding: 8px; border-radius: 8px; border: 1px solid #eee; font-size: 12px; }
         
-        /* Help the user know waypoints are clickable */
-        .maplibregl-canvas-container.maplibregl-interactive { cursor: pointer; }
+        /* Custom Popup Style for Mobile */
+        .maplibregl-popup-content { padding: 15px; border-radius: 12px; font-size: 14px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 
 <div class="overlay" id="main-overlay">
     <div id="overlay-content">
-        <h3 style="margin:0" id="trail-title">Hike Explorer</h3>
+        <h3 style="margin:0; color: #333;" id="trail-title">Hike Explorer</h3>
         <select id="trail-select" onchange="switchTrail(this.value)">
             <option value="kylemore">Kylemore Waterfall</option>
             <option value="lionshead">Lion's Head</option>
             <option value="jonkershoek">Jonkershoek Reserve</option>
         </select>
         <div id="weather-container"></div>
-        <div id="status-log" style="font-size: 10px; color: #999; margin-top: 5px;">System Ready</div>
+        <div id="status-log" style="font-size: 10px; color: #aaa; margin-top: 8px; text-transform: uppercase;">Initializing GPS...</div>
     </div>
-    <button onclick="toggleOverlay()" id="toggle-btn" style="background:none; border:none; color:#ccc; width:100%; padding:5px;">HIDE MENU</button>
+    <button onclick="toggleOverlay()" id="toggle-btn" style="background:none; border:none; color:#ddd; width:100%; padding:5px; font-size: 10px;">⬤ MENU ⬤</button>
 </div>
 
 <div id="map"></div>
@@ -73,7 +73,7 @@
             "layers": [{ "id": "osm-layer", "type": "raster", "source": "osm" }]
         },
         center: [18.9703, -33.9264],
-        zoom: 13
+        zoom: 14
     });
 
     // 3. WEATHER
@@ -85,14 +85,16 @@
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
                 const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
-                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${data.daily.temperature_2m_max[i]}°</div>`;
+                const code = data.daily.weathercode[i];
+                let icon = code > 3 ? "☁️" : "☀️";
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br><span style="font-size:18px;">${icon}</span><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
             }
-        } catch(e) { log("Weather Failed"); }
+        } catch(e) { log("Weather Offline"); }
     }
 
     // 4. TRAIL LOGIC
     async function switchTrail(key) {
-        log("Loading " + key + "...");
+        log("Fetching " + key + "...");
         try {
             const res = await fetch(trailIndex[key]);
             const data = await res.json();
@@ -105,50 +107,55 @@
                     id: 'hike-layer', 
                     type: 'circle', 
                     source: 'hike-pts', 
-                    paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } 
+                    paint: { 
+                        'circle-radius': 14, // Larger for easier tapping
+                        'circle-color': '#FF5252', 
+                        'circle-stroke-width': 3, 
+                        'circle-stroke-color': '#fff' 
+                    } 
                 });
             } else {
                 map.getSource('hike-pts').setData(data.waypoints);
             }
             fetchWeather(data.center[0], data.center[1]);
-            log("Trail Loaded");
-        } catch(e) { log("JSON Folder Missing?"); }
+            log("Trail Ready");
+        } catch(e) { log("Error: JSON missing or malformed"); }
     }
 
-    // 5. BOOTSTRAP GPS & CLICKS
+    // 5. GPS & INTERACTION
     map.on('load', () => {
-        switchTrail('kylemore');
-
-        // User Location Dot
+        // First Layer: User Dot (Bottom)
         map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
         map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 10, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
 
-        // GPS Watcher
+        // Second Layer: Waypoints (Top - so they are clickable)
+        switchTrail('kylemore');
+
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(
                 (pos) => {
+                    log("GPS Updated");
                     map.getSource('me').setData({
                         "type": "FeatureCollection",
                         "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": [pos.coords.longitude, pos.coords.latitude] } }]
                     });
                 },
-                (err) => log("GPS Error: " + err.message),
+                (err) => log("Location Off"),
                 { enableHighAccuracy: true }
             );
         }
 
-        // POPUP LOGIC - Explicitly attached to hike-layer
+        // TAPPING WAYPOINTS
         map.on('click', 'hike-layer', (e) => {
             const props = e.features[0].properties;
-            new maplibregl.Popup()
+            const title = props.name || "Waypoint";
+            const info = props.desc || "Hiker waypoint";
+
+            new maplibregl.Popup({ closeButton: false })
                 .setLngLat(e.lngLat)
-                .setHTML(`<h3>${props.name}</h3><p>${props.desc || 'No description'}</p>`)
+                .setHTML(`<div style="font-weight:bold; color:#FF5252;">${title}</div><div>${info}</div>`)
                 .addTo(map);
         });
-
-        // Cursor change on hover
-        map.on('mouseenter', 'hike-layer', () => map.getCanvas().style.cursor = 'pointer');
-        map.on('mouseleave', 'hike-layer', () => map.getCanvas().style.cursor = '');
     });
 
     function toggleOverlay() {
