@@ -9,86 +9,56 @@
     <meta name="theme-color" content="#3bb2d0">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
     <link href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet' />
 
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, sans-serif; }
-        #map { width: 100vw; height: 100vh; background: #eee; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
+        #map { width: 100vw; height: 100vh; }
 
         .overlay {
-            position: absolute; top: 15px; left: 15px; z-index: 10;
-            background: rgba(255, 255, 255, 0.98); padding: 15px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 280px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            background: white; padding: 15px; border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;
         }
-
         .collapsed { transform: translateY(-85%); }
         
-        select, button { 
-            width: 100%; padding: 14px; margin-top: 10px; 
-            border-radius: 8px; border: 1px solid #ddd; font-size: 16px; font-weight: 500;
-        }
-
-        #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 12px; padding-bottom: 5px; scrollbar-width: none; }
-        #weather-container::-webkit-scrollbar { display: none; }
-        .weather-card { text-align: center; min-width: 52px; background: #f1f3f5; padding: 6px; border-radius: 8px; border: 1px solid #e9ecef; }
-
-        @media (max-width: 800px) {
-            .overlay { top: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 20px 20px; box-sizing: border-box; }
-            .maplibregl-ctrl-top-right { top: auto !important; bottom: 35px !important; right: 15px !important; }
-            .maplibregl-ctrl button { width: 60px !important; height: 60px !important; }
-        }
+        select, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+        #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 10px; }
+        .weather-card { text-align: center; min-width: 50px; background: #f8f9fa; padding: 5px; border-radius: 6px; font-size: 12px;}
+        
+        /* Help the user know waypoints are clickable */
+        .maplibregl-canvas-container.maplibregl-interactive { cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="overlay" id="main-overlay">
     <div id="overlay-content">
-        <h3 style="margin:0 0 10px 0; color: #2c3e50;" id="trail-title">Hike Explorer</h3>
-        
+        <h3 style="margin:0" id="trail-title">Hike Explorer</h3>
         <select id="trail-select" onchange="switchTrail(this.value)">
             <option value="kylemore">Kylemore Waterfall</option>
             <option value="lionshead">Lion's Head</option>
             <option value="jonkershoek">Jonkershoek Reserve</option>
         </select>
-
-        <div id="weather-container">Detecting weather...</div>
-        <div id="install-ui"></div>
-
-        <button onclick="prepOffline()" style="background:#e7f5ff; color:#1971c2; border-color:#a5d8ff;">📥 Prepare Offline Tiles</button>
+        <div id="weather-container"></div>
+        <div id="status-log" style="font-size: 10px; color: #999; margin-top: 5px;">System Ready</div>
     </div>
-    <button onclick="toggleOverlay()" id="toggle-btn" style="background:#f8f9fa; border:none; color:#adb5bd; font-size: 12px; letter-spacing: 1px;">HIDE MENU</button>
+    <button onclick="toggleOverlay()" id="toggle-btn" style="background:none; border:none; color:#ccc; width:100%; padding:5px;">HIDE MENU</button>
 </div>
 
 <div id="map"></div>
 
 <script>
+    const log = (msg) => document.getElementById('status-log').innerText = msg;
+
     // 1. PWA SERVICE WORKER
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then(() => console.log("SW Registered"))
-                .catch(err => console.log("SW Failed", err));
-        });
+        navigator.serviceWorker.register('./service-worker.js').then(() => log("PWA Active"));
     }
 
-    // 2. INSTALLER LOGIC
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        const ui = document.getElementById('install-ui');
-        ui.innerHTML = `<button style="background:#3bb2d0; color:white; border:none;">✨ INSTALL HIKE APP</button>`;
-        ui.firstChild.onclick = () => {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(() => { ui.innerHTML = ''; deferredPrompt = null; });
-        };
-    });
-
-    // 3. MAP CONFIG
+    // 2. CONFIG
     const trailIndex = {
         "kylemore": "./trails/kylemore.json",
         "lionshead": "./trails/lionshead.json",
@@ -105,73 +75,85 @@
         center: [18.9703, -33.9264],
         zoom: 13
     });
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // 4. WEATHER & TRAIL FUNCTIONS
+    // 3. WEATHER
     async function fetchWeather(lon, lat) {
-        const container = document.getElementById('weather-container');
         try {
             const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&timezone=auto`);
             const data = await res.json();
+            const container = document.getElementById('weather-container');
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
                 const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
-                let icon = data.daily.weathercode[i] > 3 ? "🌧️" : "☀️";
-                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${icon}<br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${data.daily.temperature_2m_max[i]}°</div>`;
             }
-        } catch(e) { container.innerHTML = "Weather Offline"; }
+        } catch(e) { log("Weather Failed"); }
     }
 
+    // 4. TRAIL LOGIC
     async function switchTrail(key) {
+        log("Loading " + key + "...");
         try {
             const res = await fetch(trailIndex[key]);
-            if (!res.ok) throw new Error("JSON not found");
             const data = await res.json();
-            
             document.getElementById('trail-title').innerText = data.name;
-            map.flyTo({ center: data.center, zoom: 14, essential: true });
+            map.flyTo({ center: data.center, zoom: 14 });
             
             if (!map.getSource('hike-pts')) {
                 map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
-                map.addLayer({ id: 'hike-layer', type: 'circle', source: 'hike-pts', paint: { 'circle-radius': 10, 'circle-color': '#FF5252', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+                map.addLayer({ 
+                    id: 'hike-layer', 
+                    type: 'circle', 
+                    source: 'hike-pts', 
+                    paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } 
+                });
             } else {
                 map.getSource('hike-pts').setData(data.waypoints);
             }
             fetchWeather(data.center[0], data.center[1]);
-        } catch(e) { alert("Error: Check if /trails/ folder is uploaded correctly."); }
+            log("Trail Loaded");
+        } catch(e) { log("JSON Folder Missing?"); }
     }
 
-    function toggleOverlay() {
-        const el = document.getElementById('main-overlay');
-        el.classList.toggle('collapsed');
-        document.getElementById('toggle-btn').innerText = el.classList.contains('collapsed') ? "SHOW MENU" : "HIDE MENU";
-    }
-
-    function prepOffline() { alert("Zoom in/out around the trail waypoints to save the map tiles for offline use."); }
-
-    // 5. LIVE GPS TRACKER
+    // 5. BOOTSTRAP GPS & CLICKS
     map.on('load', () => {
         switchTrail('kylemore');
 
+        // User Location Dot
         map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
-        map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 9, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
+        map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 10, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
 
-        navigator.geolocation.watchPosition(
-            (pos) => {
-                map.getSource('me').setData({
-                    "type": "FeatureCollection",
-                    "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": [pos.coords.longitude, pos.coords.latitude] } }]
-                });
-            },
-            (err) => console.log("GPS denied"),
-            { enableHighAccuracy: true }
-        );
+        // GPS Watcher
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    map.getSource('me').setData({
+                        "type": "FeatureCollection",
+                        "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": [pos.coords.longitude, pos.coords.latitude] } }]
+                    });
+                },
+                (err) => log("GPS Error: " + err.message),
+                { enableHighAccuracy: true }
+            );
+        }
 
-        // Popups
+        // POPUP LOGIC - Explicitly attached to hike-layer
         map.on('click', 'hike-layer', (e) => {
-            new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${e.features[0].properties.name}</b><br>${e.features[0].properties.desc || ''}`).addTo(map);
+            const props = e.features[0].properties;
+            new maplibregl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(`<h3>${props.name}</h3><p>${props.desc || 'No description'}</p>`)
+                .addTo(map);
         });
+
+        // Cursor change on hover
+        map.on('mouseenter', 'hike-layer', () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', 'hike-layer', () => map.getCanvas().style.cursor = '');
     });
+
+    function toggleOverlay() {
+        document.getElementById('main-overlay').classList.toggle('collapsed');
+    }
 </script>
 </body>
 </html>
