@@ -1,6 +1,6 @@
 {
   "name": "Hiking Explorer AJ-ELM",
-  "short_name": "HikeExp",
+  "short_name": "ELM HikeExp",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -20,3 +20,4 @@
     }
   ]
 }
+
