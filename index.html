@@ -7,70 +7,77 @@
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3bb2d0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
 
     <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
     <link href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet' />
 
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
-        #map { width: 100vw; height: 100vh; background: #f0f0f0; }
-
+        #map { width: 100vw; height: 100vh; background: #eee; }
+        
         .overlay {
-            position: absolute; top: 15px; left: 15px; z-index: 100;
-            background: white; padding: 15px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
-            width: 300px; max-width: calc(100% - 30px);
-            transition: transform 0.3s ease;
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            background: white; padding: 15px; border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;
+            box-sizing: border-box;
         }
 
-        .collapsed { transform: translateY(-85%); }
-        
-        select, button, input { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 15px; box-sizing: border-box; }
-        
-        #suggestions {
-            background: white; border-radius: 8px; border: 1px solid #eee;
-            margin-top: 5px; max-height: 150px; overflow-y: auto; display: none;
+        @media (min-width: 768px) {
+            .overlay { width: 420px; left: 50%; margin-left: -210px; border: 1px solid #ddd; border-top: none; }
         }
-        .suggestion-item { padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; }
 
-        #weather-container { display: flex; overflow-x: auto; gap: 8px; margin-top: 10px; }
-        .weather-card { text-align: center; min-width: 55px; background: #f8f9fa; padding: 8px; border-radius: 8px; font-size: 11px; border: 1px solid #eee; }
+        .collapsed { transform: translateY(-92%); }
         
-        .center-btn { background: #3bb2d0; color: white; font-weight: bold; border: none; cursor: pointer; }
+        .action-row { display: flex; gap: 8px; margin-bottom: 5px; }
+        input { flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; width: 100%; box-sizing: border-box; }
+        
+        .btn { padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; color: white; transition: opacity 0.2s; }
+        .btn:active { opacity: 0.7; }
+        
+        .go-btn { background: #3bb2d0; width: 60px; }
+        .gps-btn { background: #4caf50; width: 50px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 
-        @media (max-width: 600px) {
-            .overlay { top: 0; left: 0; right: 0; width: 100%; border-radius: 0 0 20px 20px; max-width: 100%; }
-            .maplibregl-ctrl-top-right { top: 130px !important; }
+        #results-list { 
+            max-height: 180px; overflow-y: auto; background: #fff; 
+            border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; display: none;
         }
+        .result-item { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; cursor: pointer; }
+
+        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; margin-bottom: 10px; background: #f9f9f9; }
+        #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 5px; padding-bottom: 5px; }
+        .weather-card { text-align: center; min-width: 55px; background: #f1f3f5; padding: 8px; border-radius: 8px; font-size: 11px; border: 1px solid #eee; }
+        #status-log { font-size: 10px; color: #aaa; text-transform: uppercase; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div class="overlay" id="main-overlay">
     <div id="overlay-content">
-        <h3 style="margin:0 0 5px 0;">Hike Explorer</h3>
+        <h3 style="margin:0 0 10px 0; color: #333;" id="trail-title">Hike Explorer</h3>
         
-        <input type="text" id="search-input" placeholder="Search places..." autocomplete="off">
-        <div id="suggestions"></div>
+        <div class="action-row">
+            <input type="text" id="search-input" placeholder="Search map..." onkeypress="if(event.key==='Enter') searchLocation()">
+            <button class="btn go-btn" onclick="searchLocation()">GO</button>
+            <button class="btn gps-btn" onclick="centerOnUser()" title="Center on Me">📍</button>
+        </div>
 
-        <select id="trail-select" onchange="switchTrail(this.value)">
-            <option value="">-- Choose a Trail --</option>
-        </select>
-        
-        <button class="center-btn" onclick="centerToUser()">📍 Center to My Location</button>
+        <div id="results-list"></div>
+
+        <select id="trail-select" onchange="switchTrail(this.value)"></select>
 
         <div id="weather-container"></div>
-        <div id="status-log" style="font-size: 10px; color: #aaa; margin-top: 8px; text-transform: uppercase;">Ready</div>
+        <div id="status-log">System Ready</div>
     </div>
-    <button onclick="toggleOverlay()" id="toggle-btn" style="background:none; border:none; color:#ddd; width:100%; padding:5px; font-size: 10px;">⬤ HIDE MENU ⬤</button>
+    <button onclick="toggleOverlay()" style="background:none; border:none; color:#ddd; width:100%; padding:8px; font-size: 10px; cursor: pointer;">⬤ MENU ⬤</button>
 </div>
 
 <div id="map"></div>
 
 <script>
     const log = (msg) => document.getElementById('status-log').innerText = msg;
-    let userLocation = null;
-    let debounceTimer;
+    let userCoords = null;
 
     const map = new maplibregl.Map({
         container: 'map',
@@ -79,99 +86,90 @@
             "sources": { "osm": { "type": "raster", "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "tileSize": 256 } },
             "layers": [{ "id": "osm-layer", "type": "raster", "source": "osm" }]
         },
-        center: [18.9703, -33.9264],
+        center: [18.6483, -33.8340],
         zoom: 12
     });
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-    // --- DYNAMIC TRAIL SYSTEM ---
-    async function initTrailSystem() {
-        log("Loading Trail List...");
-        try {
-            const response = await fetch('./trails/list.json');
-            if (!response.ok) throw new Error("list.json not found");
-            
-            const trailList = await response.json();
-            const select = document.getElementById('trail-select');
-            
-            select.innerHTML = '<option value="">-- Choose a Trail --</option>'; // Reset
-
-            trailList.forEach(trail => {
-                const opt = document.createElement('option');
-                opt.value = trail.id;
-                opt.innerHTML = trail.name;
-                select.appendChild(opt);
-            });
-
-            // Auto-load first trail if list exists
-            if(trailList.length > 0) {
-                select.value = trailList[0].id;
-                switchTrail(trailList[0].id);
-            }
-            log("System Ready");
-        } catch (e) {
-            log("Error: Create 'trails/list.json'");
-            console.error(e);
+    // --- GPS FUNCTIONS ---
+    function centerOnUser() {
+        if (userCoords) {
+            map.flyTo({ center: userCoords, zoom: 15 });
+            log("Centered on you");
+            fetchWeather(userCoords[0], userCoords[1]);
+        } else {
+            log("Waiting for GPS signal...");
+            alert("Ensure GPS is on and permissions are granted!");
         }
     }
 
-    async function switchTrail(id) {
-        if (!id) return;
-        log("Fetching Trail: " + id);
+    // --- SEARCH FUNCTIONS ---
+    async function searchLocation() {
+        const query = document.getElementById('search-input').value;
+        const listDiv = document.getElementById('results-list');
+        if (!query) return;
+
+        log("Fetching results...");
+        const bounds = map.getBounds();
+        const viewbox = `${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()},${bounds.getSouth()}`;
+
         try {
-            const res = await fetch(`./trails/${id}.json`);
-            if (!res.ok) throw new Error("JSON file missing");
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=0&limit=5`);
             const data = await res.json();
-            
-            map.flyTo({ center: data.center, zoom: 14 });
-            
-            if (!map.getSource('hike-pts')) {
-                map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
-                map.addLayer({ 
-                    id: 'hike-layer', type: 'circle', source: 'hike-pts', 
-                    paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } 
-                });
+
+            if (data.length === 0) {
+                log("No results found");
+                listDiv.style.display = 'none';
+            } else if (data.length === 1) {
+                selectPlace(data[0].lon, data[0].lat, data[0].display_name);
             } else {
-                map.getSource('hike-pts').setData(data.waypoints);
+                listDiv.innerHTML = '';
+                listDiv.style.display = 'block';
+                data.forEach(place => {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.innerText = place.display_name.split(',').slice(0,3).join(',');
+                    item.onclick = () => selectPlace(place.lon, place.lat, place.display_name);
+                    listDiv.appendChild(item);
+                });
             }
-            fetchWeather(data.center[0], data.center[1]);
-        } catch(e) { log("Trail JSON Error"); }
+        } catch (e) { log("Search Error"); }
     }
 
-    // --- SEARCH & WEATHER & GPS ---
-    // (Keeping your working search/GPS/weather logic here...)
-    const searchInput = document.getElementById('search-input');
-    const suggestionsBox = document.getElementById('suggestions');
+    function selectPlace(lon, lat, name) {
+        document.getElementById('results-list').style.display = 'none';
+        map.flyTo({ center: [parseFloat(lon), parseFloat(lat)], zoom: 14 });
+        document.getElementById('search-input').value = name.split(',')[0];
+        fetchWeather(lon, lat);
+    }
 
-    searchInput.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        const query = searchInput.value;
-        if (query.length < 3) { suggestionsBox.style.display = 'none'; return; }
-        debounceTimer = setTimeout(() => fetchSuggestions(query), 400);
-    });
-
-    async function fetchSuggestions(query) {
+    // --- TRAIL & WEATHER FUNCTIONS ---
+    async function initTrailSystem() {
         try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+            const response = await fetch('./trails/list.json');
+            const trailList = await response.json();
+            const select = document.getElementById('trail-select');
+            select.innerHTML = ''; 
+            trailList.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id; opt.textContent = t.name;
+                select.appendChild(opt);
+            });
+            if(trailList.length > 0) switchTrail(trailList[0].id);
+        } catch (e) { log("list.json error"); }
+    }
+
+    async function switchTrail(id) {
+        try {
+            const res = await fetch(`./trails/${id}.json`);
             const data = await res.json();
-            suggestionsBox.innerHTML = '';
-            if (data.length > 0) {
-                suggestionsBox.style.display = 'block';
-                data.forEach(place => {
-                    const div = document.createElement('div');
-                    div.className = 'suggestion-item';
-                    div.innerText = place.display_name;
-                    div.onclick = () => {
-                        searchInput.value = place.display_name;
-                        suggestionsBox.style.display = 'none';
-                        map.flyTo({ center: [place.lon, place.lat], zoom: 15 });
-                        fetchWeather(place.lon, place.lat);
-                    };
-                    suggestionsBox.appendChild(div);
-                });
-            }
-        } catch (e) { console.error(e); }
+            document.getElementById('trail-title').innerText = data.name;
+            map.flyTo({ center: data.center, zoom: 14 });
+            if (!map.getSource('hike-pts')) {
+                map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
+                map.addLayer({ id: 'hike-layer', type: 'circle', source: 'hike-pts', paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
+            } else { map.getSource('hike-pts').setData(data.waypoints); }
+            fetchWeather(data.center[0], data.center[1]);
+        } catch(e) { log("JSON error"); }
     }
 
     async function fetchWeather(lon, lat) {
@@ -181,28 +179,27 @@
             const container = document.getElementById('weather-container');
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
-                container.innerHTML += `<div class="weather-card"><b>${new Date(data.daily.time[i]).toLocaleDateString('en',{weekday:'short'})}</b><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
+                const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
             }
-        } catch(e) {}
+        } catch(e) { log("Weather offline"); }
     }
 
-    function centerToUser() {
-        if (userLocation) map.flyTo({ center: userLocation, zoom: 16 });
-        else alert("GPS locating...");
-    }
-
+    // --- BOOT ---
     map.on('load', () => {
         initTrailSystem();
         map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
         map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 10, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
 
-        navigator.geolocation.watchPosition((pos) => {
-            userLocation = [pos.coords.longitude, pos.coords.latitude];
-            map.getSource('me').setData({
-                "type": "FeatureCollection",
-                "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": userLocation } }]
-            });
-        }, null, { enableHighAccuracy: true });
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition((pos) => {
+                userCoords = [pos.coords.longitude, pos.coords.latitude];
+                map.getSource('me').setData({
+                    "type": "FeatureCollection",
+                    "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": userCoords } }]
+                });
+            }, null, { enableHighAccuracy: true });
+        }
 
         map.on('click', 'hike-layer', (e) => {
             new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${e.features[0].properties.name}</b>`).addTo(map);

@@ -1,0 +1,68 @@
+{
+  "name": "Plattekloof nature Reserve Tortoise",
+  "center": [
+    18.600221066725226,
+    -33.878031228937274
+  ],
+  "waypoints": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.600221066725226,
+            -33.878031228937274
+          ]
+        },
+        "properties": {
+          "name": "Parking",
+          "desc": null
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.598543975088347,
+            -33.8782726467454
+          ]
+        },
+        "properties": {
+          "name": "Start of Trail, Turn Right off the tar road",
+          "desc": null
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.599717214546644,
+            -33.87779640863422
+          ]
+        },
+        "properties": {
+          "name": "End of Trail head to exit or enjoy a picknik",
+          "desc": null
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.598879480125817,
+            -33.87684394569389
+          ]
+        },
+        "properties": {
+          "name": "Turn for Duiker if you want to ",
+          "desc": null
+        }
+      }
+    ]
+  }
+}

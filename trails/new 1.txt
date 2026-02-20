@@ -1,0 +1,49 @@
+// 1. Add 'Enter' key support (put this in your map.on('load') or script body)
+document.getElementById('search-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') searchLocation();
+});
+
+// 2. Updated Search Function with Biasing
+async function searchLocation() {
+    const query = document.getElementById('search-input').value;
+    if (!query) return;
+    
+    log("Searching nearby...");
+    
+    // Get current map bounds to bias results to your current view
+    const bounds = map.getBounds();
+    const viewbox = `${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()},${bounds.getSouth()}`;
+
+    try {
+        // We add 'viewbox' and 'bounded=1' to prioritize the local area
+        // viewbox format: left,top,right,bottom
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=0&limit=5&addressdetails=1`;
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.length > 0) {
+            // Pick the first result
+            const result = data[0];
+            
+            map.flyTo({
+                center: [parseFloat(result.lon), parseFloat(result.lat)],
+                zoom: 14,
+                essential: true
+            });
+
+            // Update UI
+            const displayName = result.display_name.split(',')[0];
+            log("Found: " + displayName);
+            document.getElementById('search-input').value = displayName;
+            
+            // Update Weather for the new location
+            fetchWeather(result.lon, result.lat);
+        } else {
+            log("No local matches");
+        }
+    } catch (e) {
+        log("Search Failed");
+        console.error(e);
+    }
+}

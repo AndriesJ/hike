@@ -1,14 +1,82 @@
 {
-    "name": "Kylemore Waterfall Trail",
-    "center": [18.9703, -33.9264],
-    "waypoints": {
-        "type": "FeatureCollection",
-        "features": [
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9703, -33.9264] }, "properties": { "name": "Trailhead Parking", "desc": "Secure parking at the end of the road." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9715, -33.9262] }, "properties": { "name": "River Crossing", "desc": "Step carefully over the rocks here." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9740, -33.9275] }, "properties": { "name": "Protea Patch", "desc": "Beautiful flowers during spring." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9755, -33.9288] }, "properties": { "name": "Steep Ravine", "desc": "The final climb before the falls." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.9764, -33.9293] }, "properties": { "name": "Kylemore Waterfall", "desc": "The main falls. Great for a swim!" } }
-        ]
-    }
+  "name": "Kylemore Waterfall Trail",
+  "center": [
+    18.953495854253447,
+    -33.915442905903895
+  ],
+  "waypoints": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.953495854253447,
+            -33.915442905903895
+          ]
+        },
+        "properties": {
+          "name": "Trailhead Parking",
+          "desc": "Secure parking at the end of the road."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.95839513453194,
+            -33.921934154207
+          ]
+        },
+        "properties": {
+          "name": "River Crossing",
+          "desc": "Step carefully over the rocks here."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.971260891566345,
+            -33.92584574660576
+          ]
+        },
+        "properties": {
+          "name": "Protea Patch",
+          "desc": "Beautiful flowers during spring."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.970416897904585,
+            -33.92649481443331
+          ]
+        },
+        "properties": {
+          "name": "Steep Ravine",
+          "desc": "The final climb before the falls."
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.9764,
+            -33.9293
+          ]
+        },
+        "properties": {
+          "name": "Kylemore Waterfall",
+          "desc": "The main falls. Great for a swim!"
+        }
+      }
+    ]
+  }
 }

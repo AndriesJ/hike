@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hike Manager | Live Editor</title>
+    <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet' />
+    <style>
+        body { margin: 0; display: flex; font-family: sans-serif; height: 100vh; overflow: hidden; }
+        #map { flex-grow: 1; height: 100%; }
+        #sidebar { width: 380px; background: #fff; padding: 20px; border-left: 1px solid #ddd; overflow-y: auto; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
+        h2, h3 { margin-top: 0; color: #2c3e50; }
+        input, textarea, button, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 14px; }
+        button { background: #3bb2d0; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #2da1bd; }
+        .btn-load { background: #6c757d; }
+        .btn-copy { background: #4caf50; }
+        .waypoint-item { background: #f8f9fa; padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
+        #json-output { background: #272822; color: #ae81ff; font-family: monospace; font-size: 11px; resize: none; }
+        .custom-marker { background-color: #FF5252; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: move; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="sidebar">
+    <h2>Trail Editor</h2>
+    
+    <h3>1. Load Existing Trail</h3>
+    <select id="trail-select">
+        <option value="">Fetching list...</option>
+    </select>
+    <button class="btn-load" onclick="loadFromServer()">📂 Load & Edit Trail</button>
+
+    <hr>
+    
+    <h3>2. Edit Details</h3>
+    <input type="text" id="trail-name" placeholder="Trail Name">
+    <input type="text" id="trail-id" placeholder="Trail ID (filename)">
+
+    <div id="waypoint-list"></div>
+    
+    <hr>
+    
+    <h3>3. Save Changes</h3>
+    <textarea id="json-output" rows="8" readonly placeholder="Output JSON..."></textarea>
+    <button class="btn-copy" onclick="copyJSON()">📋 Copy Updated JSON</button>
+    <p style="font-size: 10px; color: #999;">Paste this content into your <b>trails/[id].json</b> file on GitHub.</p>
+</div>
+
+<script>
+    let waypoints = [];
+    let markers = [];
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            "version": 8,
+            "sources": { "osm": { "type": "raster", "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "tileSize": 256 } },
+            "layers": [{ "id": "osm-layer", "type": "raster", "source": "osm" }]
+        },
+        center: [18.6483, -33.8340],
+        zoom: 12
+    });
+
+    // Populate the dropdown on boot
+    async function fetchList() {
+        try {
+            const res = await fetch('./trails/list.json');
+            const list = await res.json();
+            const select = document.getElementById('trail-select');
+            select.innerHTML = '<option value="">-- Select a Trail --</option>';
+            list.forEach(t => {
+                let opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                select.appendChild(opt);
+            });
+        } catch(e) { console.error("Could not load list.json"); }
+    }
+
+    async function loadFromServer() {
+        const id = document.getElementById('trail-select').value;
+        if (!id) return;
+
+        try {
+            const res = await fetch(`./trails/${id}.json`);
+            const data = await res.json();
+            
+            // Clear current editor state
+            markers.forEach(m => m.marker.remove());
+            markers = [];
+            waypoints = [];
+
+            document.getElementById('trail-name').value = data.name;
+            document.getElementById('trail-id').value = id;
+
+            data.waypoints.features.forEach(f => {
+                createWaypoint(f.geometry.coordinates[0], f.geometry.coordinates[1], f.properties.name, f.properties.desc);
+            });
+
+            map.flyTo({ center: data.center, zoom: 14 });
+            updateSidebar();
+        } catch(e) { alert("Error loading trail file from server."); }
+    }
+
+    map.on('click', (e) => {
+        if (e.originalEvent.target.tagName === 'CANVAS') {
+            const name = prompt("Waypoint Name:");
+            if (name) createWaypoint(e.lngLat.lng, e.lngLat.lat, name, "...");
+        }
+    });
+
+    function createWaypoint(lng, lat, name, desc) {
+        const id = Date.now() + Math.random();
+        const wp = { id, name, desc, lng, lat };
+        waypoints.push(wp);
+        addMarkerToMap(wp);
+        updateSidebar();
+    }
+
+    function addMarkerToMap(wp) {
+        const el = document.createElement('div');
+        el.className = 'custom-marker';
+        const marker = new maplibregl.Marker({ element: el, draggable: true })
+            .setLngLat([wp.lng, wp.lat])
+            .setPopup(new maplibregl.Popup({offset:10}).setHTML(`
+                <strong>${wp.name}</strong><br>
+                <button onclick="removeWaypoint(${wp.id})" style="background:red;color:white;border:none;cursor:pointer;font-size:10px;margin-top:5px;">REMOVE</button>
+            `))
+            .addTo(map);
+
+        marker.on('dragend', () => {
+            const newPos = marker.getLngLat();
+            const found = waypoints.find(w => w.id === wp.id);
+            found.lng = newPos.lng; found.lat = newPos.lat;
+            updateSidebar();
+        });
+        markers.push({ id: wp.id, marker });
+    }
+
+    function removeWaypoint(id) {
+        waypoints = waypoints.filter(w => w.id !== id);
+        const mObj = markers.find(m => m.id === id);
+        if (mObj) mObj.marker.remove();
+        markers = markers.filter(m => m.id !== id);
+        updateSidebar();
+    }
+
+    function updateSidebar() {
+        document.getElementById('waypoint-list').innerHTML = waypoints.map(w => `<div class="waypoint-item">📍 ${w.name}</div>`).join('');
+        generateJSON();
+    }
+
+    function generateJSON() {
+        const output = {
+            name: document.getElementById('trail-name').value,
+            center: waypoints.length > 0 ? [waypoints[0].lng, waypoints[0].lat] : [18.6483, -33.8340],
+            waypoints: {
+                type: "FeatureCollection",
+                features: waypoints.map(w => ({
+                    type: "Feature",
+                    geometry: { type: "Point", coordinates: [w.lng, w.lat] },
+                    properties: { name: w.name, desc: w.desc }
+                }))
+            }
+        };
+        document.getElementById('json-output').value = JSON.stringify(output, null, 2);
+    }
+
+    function copyJSON() {
+        const copyText = document.getElementById("json-output");
+        copyText.select();
+        document.execCommand("copy");
+        alert("Updated JSON copied!");
+    }
+
+    map.on('load', fetchList);
+</script>
+</body>
+</html>
