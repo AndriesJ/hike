@@ -9,16 +9,178 @@
     <style>
         body { margin: 0; display: flex; font-family: sans-serif; height: 100vh; overflow: hidden; }
         #map { flex-grow: 1; height: 100%; }
-        #sidebar { width: 380px; background: #fff; padding: 20px; border-left: 1px solid #ddd; overflow-y: auto; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
+        #sidebar { width: 420px; background: #fff; padding: 20px; border-left: 1px solid #ddd; overflow-y: auto; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
         h2, h3 { margin-top: 0; color: #2c3e50; }
+        h3 { font-size: 16px; margin-bottom: 10px; border-bottom: 2px solid #3bb2d0; padding-bottom: 5px; }
         input, textarea, button, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 14px; }
-        button { background: #3bb2d0; color: white; border: none; font-weight: bold; cursor: pointer; }
+        textarea { font-family: inherit; resize: vertical; min-height: 60px; }
+        button { background: #3bb2d0; color: white; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; }
         button:hover { background: #2da1bd; }
+        button.danger { background: #e74c3c; }
+        button.danger:hover { background: #c0392b; }
+        button.success { background: #4caf50; }
+        button.success:hover { background: #45a049; }
         .btn-load { background: #6c757d; }
         .btn-copy { background: #4caf50; }
-        .waypoint-item { background: #f8f9fa; padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
-        #json-output { background: #272822; color: #ae81ff; font-family: monospace; font-size: 11px; resize: none; }
-        .custom-marker { background-color: #FF5252; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: move; }
+        
+        .waypoint-item { 
+            background: #f8f9fa; 
+            padding: 12px; 
+            border: 1px solid #eee; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .waypoint-item:hover { 
+            background: #e9ecef; 
+            border-color: #3bb2d0;
+        }
+        .waypoint-item.selected {
+            background: #e3f2fd;
+            border-color: #3bb2d0;
+            box-shadow: 0 2px 8px rgba(59, 178, 208, 0.3);
+        }
+        .waypoint-item .waypoint-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .waypoint-item .waypoint-desc {
+            font-size: 12px;
+            color: #6c757d;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .waypoint-item .waypoint-coords {
+            font-size: 10px;
+            color: #95a5a6;
+            margin-top: 4px;
+        }
+        .waypoint-item .remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: none;
+            padding: 0;
+        }
+        .waypoint-item:hover .remove-btn {
+            display: block;
+        }
+        
+        #waypoint-list { 
+            max-height: 300px; 
+            overflow-y: auto; 
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px;
+        }
+        
+        #json-output { 
+            background: #272822; 
+            color: #ae81ff; 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            font-size: 11px; 
+            resize: none; 
+            height: 150px;
+        }
+        
+        .custom-marker { 
+            background-color: #FF5252; 
+            width: 18px; 
+            height: 18px; 
+            border-radius: 50%; 
+            border: 3px solid white; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+            cursor: move; 
+        }
+        .custom-marker.selected {
+            background-color: #3bb2d0;
+            width: 22px;
+            height: 22px;
+            border: 4px solid white;
+            box-shadow: 0 0 15px rgba(59, 178, 208, 0.8);
+        }
+        
+        .photo-preview {
+            width: 100%;
+            max-height: 150px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin: 8px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .photo-placeholder {
+            width: 100%;
+            height: 100px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #adb5bd;
+            font-size: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .photo-placeholder:hover {
+            border-color: #3bb2d0;
+            color: #3bb2d0;
+        }
+        
+        .photo-actions {
+            display: flex;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        .photo-actions button {
+            flex: 1;
+            margin: 0;
+            padding: 8px;
+        }
+        
+        .waypoint-editor {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .waypoint-editor h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .info-text {
+            font-size: 12px;
+            color: #6c757d;
+            margin: 5px 0;
+        }
+        
+        hr {
+            border: none;
+            border-top: 1px solid #dee2e6;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
@@ -33,36 +195,76 @@
         <option value="">Fetching list...</option>
     </select>
     <button class="btn-load" onclick="loadFromServer()">📂 Load & Edit Trail</button>
+    <button class="btn-load" onclick="resetEditor()" style="background: #e67e22;">🔄 New Trail</button>
 
     <hr>
     
-    <h3>2. Edit Details</h3>
+    <h3>2. Trail Details</h3>
     <input type="text" id="trail-name" placeholder="Trail Name">
-	<!-- Add after the trail-name input -->
-	<input type="text" id="trail-difficulty" placeholder="Difficulty (Easy/Moderate/Hard)">
-	<input type="text" id="trail-duration" placeholder="Duration (e.g., 2 hours)">
-	<input type="text" id="trail-distance" placeholder="Distance (e.g., 5.5 km)">
-	<input type="text" id="trail-elevation" placeholder="Elevation gain (e.g., 350 m)">
-	<textarea id="trail-description" placeholder="Trail description..." rows="3"></textarea>
-	<input type="text" id="trail-best-season" placeholder="Best season to hike">
-	<textarea id="trail-facilities" placeholder="Facilities (one per line)" rows="2"></textarea>
-	<textarea id="trail-safety-tips" placeholder="Safety tips (one per line)" rows="2"></textarea>
-
     <input type="text" id="trail-id" placeholder="Trail ID (filename)">
+    <input type="text" id="trail-difficulty" placeholder="Difficulty (Easy/Moderate/Hard)">
+    <div style="display: flex; gap: 8px;">
+        <input type="text" id="trail-duration" placeholder="Duration (e.g., 2 hours)" style="flex: 1;">
+        <input type="text" id="trail-distance" placeholder="Distance (e.g., 5.5 km)" style="flex: 1;">
+    </div>
+    <input type="text" id="trail-elevation" placeholder="Elevation gain (e.g., 350 m)">
+    <textarea id="trail-description" placeholder="Trail description..." rows="3"></textarea>
+    <input type="text" id="trail-best-season" placeholder="Best season to hike">
+    <textarea id="trail-facilities" placeholder="Facilities (one per line)" rows="2"></textarea>
+    <textarea id="trail-safety-tips" placeholder="Safety tips (one per line)" rows="2"></textarea>
 
+    <hr>
+    
+    <h3>3. Waypoints</h3>
+    <div class="info-text">📍 Click on map to add a new waypoint</div>
     <div id="waypoint-list"></div>
     
+    <!-- Waypoint Editor -->
+    <div id="waypoint-editor" class="waypoint-editor" style="display: none;">
+        <h4>
+            Edit Waypoint
+            <button class="danger" onclick="deselectWaypoint()" style="width: auto; padding: 4px 8px;">✕</button>
+        </h4>
+        
+        <input type="text" id="edit-waypoint-name" placeholder="Waypoint Name">
+        <textarea id="edit-waypoint-desc" placeholder="Description" rows="2"></textarea>
+        
+        <div class="info-text">📸 Photo URL (optional)</div>
+        <input type="text" id="edit-waypoint-photo" placeholder="https://example.com/photo.jpg">
+        
+        <div id="photo-preview-container">
+            <img id="photo-preview" class="photo-preview" style="display: none;" alt="Preview">
+            <div class="photo-placeholder" onclick="document.getElementById('edit-waypoint-photo').focus()">
+                + Add Photo URL
+            </div>
+        </div>
+        
+        <div class="photo-actions">
+            <button class="success" onclick="updateWaypoint()">💾 Save Changes</button>
+            <button class="danger" onclick="deleteSelectedWaypoint()">🗑️ Delete</button>
+        </div>
+        
+        <div class="info-text" style="margin-top: 8px;">
+            Drag marker on map to adjust position
+        </div>
+    </div>
+
     <hr>
     
-    <h3>3. Save Changes</h3>
-    <textarea id="json-output" rows="8" readonly placeholder="Output JSON..."></textarea>
-    <button class="btn-copy" onclick="copyJSON()">📋 Copy Updated JSON</button>
+    <h3>4. Save Changes</h3>
+    <textarea id="json-output" readonly placeholder="Output JSON..."></textarea>
+    <div style="display: flex; gap: 8px;">
+        <button class="btn-copy" onclick="copyJSON()" style="flex: 2;">📋 Copy Updated JSON</button>
+        <button class="btn-copy" onclick="downloadJSON()" style="flex: 1;">⬇️ Download</button>
+    </div>
     <p style="font-size: 10px; color: #999;">Paste this content into your <b>trails/[id].json</b> file on GitHub.</p>
 </div>
 
 <script>
     let waypoints = [];
     let markers = [];
+    let selectedWaypointId = null;
+    let currentPhotoUrl = '';
 
     const map = new maplibregl.Map({
         container: 'map',
@@ -74,6 +276,9 @@
         center: [18.6483, -33.8340],
         zoom: 12
     });
+
+    // Add navigation control
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     // Populate the dropdown on boot
     async function fetchList() {
@@ -88,75 +293,236 @@
                 opt.textContent = t.name;
                 select.appendChild(opt);
             });
-        } catch(e) { console.error("Could not load list.json"); }
+        } catch(e) { 
+            console.error("Could not load list.json");
+            document.getElementById('trail-select').innerHTML = '<option value="">Error loading list</option>';
+        }
     }
 
-async function loadFromServer() {
-    const id = document.getElementById('trail-select').value;
-    if (!id) return;
+    async function loadFromServer() {
+        const id = document.getElementById('trail-select').value;
+        if (!id) return;
 
-    try {
-        const res = await fetch(`./trails/${id}.json`);
-        const data = await res.json();
-        
-        // Clear current editor state
+        try {
+            const res = await fetch(`./trails/${id}.json`);
+            const data = await res.json();
+            
+            // Clear current editor state
+            clearAllMarkers();
+            waypoints = [];
+            selectedWaypointId = null;
+            hideWaypointEditor();
+
+            // Fill in trail details
+            document.getElementById('trail-name').value = data.name || '';
+            document.getElementById('trail-id').value = id;
+            document.getElementById('trail-difficulty').value = data.difficulty || '';
+            document.getElementById('trail-duration').value = data.duration || '';
+            document.getElementById('trail-distance').value = data.distance || '';
+            document.getElementById('trail-elevation').value = data.elevation || '';
+            document.getElementById('trail-description').value = data.description || '';
+            document.getElementById('trail-best-season').value = data.weather?.best_season || '';
+            document.getElementById('trail-facilities').value = data.facilities?.join('\n') || '';
+            document.getElementById('trail-safety-tips').value = data.safety_tips?.join('\n') || '';
+
+            // Create waypoints
+            if (data.waypoints && data.waypoints.features) {
+                data.waypoints.features.forEach(f => {
+                    const coords = f.geometry.coordinates;
+                    const props = f.properties || {};
+                    createWaypoint(
+                        coords[0], 
+                        coords[1], 
+                        props.name || 'Waypoint', 
+                        props.desc || '',
+                        props.image || ''
+                    );
+                });
+            }
+
+            map.flyTo({ center: data.center || [coords[0], coords[1]], zoom: 14 });
+            updateSidebar();
+        } catch(e) { 
+            alert("Error loading trail file from server.");
+            console.error(e);
+        }
+    }
+
+    function resetEditor() {
+        if (confirm('Start a new trail? Unsaved changes will be lost.')) {
+            clearAllMarkers();
+            waypoints = [];
+            selectedWaypointId = null;
+            
+            // Clear all form fields
+            document.getElementById('trail-name').value = '';
+            document.getElementById('trail-id').value = '';
+            document.getElementById('trail-difficulty').value = '';
+            document.getElementById('trail-duration').value = '';
+            document.getElementById('trail-distance').value = '';
+            document.getElementById('trail-elevation').value = '';
+            document.getElementById('trail-description').value = '';
+            document.getElementById('trail-best-season').value = '';
+            document.getElementById('trail-facilities').value = '';
+            document.getElementById('trail-safety-tips').value = '';
+            
+            hideWaypointEditor();
+            updateSidebar();
+            
+            map.flyTo({ center: [18.6483, -33.8340], zoom: 12 });
+        }
+    }
+
+    function clearAllMarkers() {
         markers.forEach(m => m.marker.remove());
         markers = [];
-        waypoints = [];
-
-        document.getElementById('trail-name').value = data.name || '';
-        document.getElementById('trail-id').value = id;
-        document.getElementById('trail-difficulty').value = data.difficulty || '';
-        document.getElementById('trail-duration').value = data.duration || '';
-        document.getElementById('trail-distance').value = data.distance || '';
-        document.getElementById('trail-elevation').value = data.elevation || '';
-        document.getElementById('trail-description').value = data.description || '';
-        document.getElementById('trail-best-season').value = data.weather?.best_season || '';
-        document.getElementById('trail-facilities').value = data.facilities?.join('\n') || '';
-        document.getElementById('trail-safety-tips').value = data.safety_tips?.join('\n') || '';
-
-        data.waypoints.features.forEach(f => {
-            createWaypoint(f.geometry.coordinates[0], f.geometry.coordinates[1], f.properties.name, f.properties.desc);
-        });
-
-        map.flyTo({ center: data.center, zoom: 14 });
-        updateSidebar();
-    } catch(e) { alert("Error loading trail file from server."); }
-}
+    }
 
     map.on('click', (e) => {
-        if (e.originalEvent.target.tagName === 'CANVAS') {
-            const name = prompt("Waypoint Name:");
-            if (name) createWaypoint(e.lngLat.lng, e.lngLat.lat, name, "...");
+        if (e.originalEvent.target.tagName === 'CANVAS' && !e.originalEvent.ctrlKey) {
+            const name = prompt("Waypoint Name:", "Waypoint " + (waypoints.length + 1));
+            if (name) {
+                const desc = prompt("Description (optional):", "");
+                createWaypoint(e.lngLat.lng, e.lngLat.lat, name, desc || '', '');
+            }
         }
     });
 
-    function createWaypoint(lng, lat, name, desc) {
+    function createWaypoint(lng, lat, name, desc, imageUrl = '') {
         const id = Date.now() + Math.random();
-        const wp = { id, name, desc, lng, lat };
+        const wp = { 
+            id, 
+            name, 
+            desc, 
+            image: imageUrl,
+            lng, 
+            lat 
+        };
         waypoints.push(wp);
         addMarkerToMap(wp);
         updateSidebar();
+        selectWaypoint(id); // Auto-select new waypoint for editing
     }
 
     function addMarkerToMap(wp) {
         const el = document.createElement('div');
         el.className = 'custom-marker';
+        if (wp.id === selectedWaypointId) {
+            el.classList.add('selected');
+        }
+        
         const marker = new maplibregl.Marker({ element: el, draggable: true })
             .setLngLat([wp.lng, wp.lat])
-            .setPopup(new maplibregl.Popup({offset:10}).setHTML(`
-                <strong>${wp.name}</strong><br>
-                <button onclick="removeWaypoint(${wp.id})" style="background:red;color:white;border:none;cursor:pointer;font-size:10px;margin-top:5px;">REMOVE</button>
-            `))
             .addTo(map);
 
         marker.on('dragend', () => {
             const newPos = marker.getLngLat();
             const found = waypoints.find(w => w.id === wp.id);
-            found.lng = newPos.lng; found.lat = newPos.lat;
+            found.lng = newPos.lng;
+            found.lat = newPos.lat;
             updateSidebar();
+            
+            // Update popup if it exists
+            if (wp.id === selectedWaypointId) {
+                updateWaypointEditor(found);
+            }
         });
-        markers.push({ id: wp.id, marker });
+
+        marker.getElement().addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectWaypoint(wp.id);
+        });
+
+        markers.push({ id: wp.id, marker, element: el });
+    }
+
+    function selectWaypoint(id) {
+        // Deselect previous
+        if (selectedWaypointId) {
+            const prevMarker = markers.find(m => m.id === selectedWaypointId);
+            if (prevMarker) {
+                prevMarker.element.classList.remove('selected');
+            }
+        }
+
+        selectedWaypointId = id;
+        
+        // Select new
+        const marker = markers.find(m => m.id === id);
+        if (marker) {
+            marker.element.classList.add('selected');
+        }
+
+        const waypoint = waypoints.find(w => w.id === id);
+        if (waypoint) {
+            updateWaypointEditor(waypoint);
+            showWaypointEditor();
+            
+            // Fly to waypoint
+            map.flyTo({ center: [waypoint.lng, waypoint.lat], zoom: 16 });
+        }
+    }
+
+    function deselectWaypoint() {
+        if (selectedWaypointId) {
+            const marker = markers.find(m => m.id === selectedWaypointId);
+            if (marker) {
+                marker.element.classList.remove('selected');
+            }
+        }
+        selectedWaypointId = null;
+        hideWaypointEditor();
+    }
+
+    function showWaypointEditor() {
+        document.getElementById('waypoint-editor').style.display = 'block';
+    }
+
+    function hideWaypointEditor() {
+        document.getElementById('waypoint-editor').style.display = 'none';
+    }
+
+    function updateWaypointEditor(waypoint) {
+        document.getElementById('edit-waypoint-name').value = waypoint.name || '';
+        document.getElementById('edit-waypoint-desc').value = waypoint.desc || '';
+        document.getElementById('edit-waypoint-photo').value = waypoint.image || '';
+        
+        // Update photo preview
+        const photoPreview = document.getElementById('photo-preview');
+        const photoPlaceholder = document.querySelector('.photo-placeholder');
+        
+        if (waypoint.image) {
+            photoPreview.src = waypoint.image;
+            photoPreview.style.display = 'block';
+            photoPlaceholder.style.display = 'none';
+        } else {
+            photoPreview.style.display = 'none';
+            photoPlaceholder.style.display = 'flex';
+        }
+    }
+
+    function updateWaypoint() {
+        if (!selectedWaypointId) return;
+
+        const waypoint = waypoints.find(w => w.id === selectedWaypointId);
+        if (waypoint) {
+            waypoint.name = document.getElementById('edit-waypoint-name').value;
+            waypoint.desc = document.getElementById('edit-waypoint-desc').value;
+            waypoint.image = document.getElementById('edit-waypoint-photo').value;
+            
+            updateSidebar();
+            
+            // Update photo preview
+            updateWaypointEditor(waypoint);
+        }
+    }
+
+    function deleteSelectedWaypoint() {
+        if (!selectedWaypointId) return;
+        
+        if (confirm('Delete this waypoint?')) {
+            removeWaypoint(selectedWaypointId);
+        }
     }
 
     function removeWaypoint(id) {
@@ -164,58 +530,133 @@ async function loadFromServer() {
         const mObj = markers.find(m => m.id === id);
         if (mObj) mObj.marker.remove();
         markers = markers.filter(m => m.id !== id);
+        
+        if (selectedWaypointId === id) {
+            deselectWaypoint();
+        }
+        
         updateSidebar();
     }
 
     function updateSidebar() {
-        document.getElementById('waypoint-list').innerHTML = waypoints.map(w => `<div class="waypoint-item">📍 ${w.name}</div>`).join('');
+        const listDiv = document.getElementById('waypoint-list');
+        listDiv.innerHTML = waypoints.map(w => `
+            <div class="waypoint-item ${w.id === selectedWaypointId ? 'selected' : ''}" 
+                 onclick="selectWaypoint(${w.id})">
+                <div class="waypoint-name">📍 ${w.name}</div>
+                <div class="waypoint-desc">${w.desc || 'No description'}</div>
+                <div class="waypoint-coords">
+                    ${w.lat.toFixed(5)}°, ${w.lng.toFixed(5)}°
+                    ${w.image ? ' 📸' : ''}
+                </div>
+                <button class="remove-btn" onclick="removeWaypoint(${w.id}); event.stopPropagation();">×</button>
+            </div>
+        `).join('');
+        
         generateJSON();
     }
 
     function generateJSON() {
-    const facilities = document.getElementById('trail-facilities').value
-        .split('\n')
-        .filter(line => line.trim())
-        .map(line => line.trim());
-    
-    const safetyTips = document.getElementById('trail-safety-tips').value
-        .split('\n')
-        .filter(line => line.trim())
-        .map(line => line.trim());
+        const facilities = document.getElementById('trail-facilities').value
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.trim());
+        
+        const safetyTips = document.getElementById('trail-safety-tips').value
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => line.trim());
 
-    const output = {
-        name: document.getElementById('trail-name').value,
-        id: document.getElementById('trail-id').value,
-        difficulty: document.getElementById('trail-difficulty').value,
-        duration: document.getElementById('trail-duration').value,
-        distance: document.getElementById('trail-distance').value,
-        elevation: document.getElementById('trail-elevation').value,
-        description: document.getElementById('trail-description').value,
-        coordinates: waypoints.length > 0 ? [waypoints[0].lng, waypoints[0].lat] : [18.6483, -33.8340],
-        center: waypoints.length > 0 ? [waypoints[0].lng, waypoints[0].lat] : [18.6483, -33.8340],
-        waypoints: {
-            type: "FeatureCollection",
-            features: waypoints.map(w => ({
-                type: "Feature",
-                geometry: { type: "Point", coordinates: [w.lng, w.lat] },
-                properties: { name: w.name, desc: w.desc }
-            }))
-        },
-        weather: {
-            best_season: document.getElementById('trail-best-season').value
-        },
-        facilities: facilities,
-        safety_tips: safetyTips
-    };
-    document.getElementById('json-output').value = JSON.stringify(output, null, 2);
-}
+        const firstWaypoint = waypoints.length > 0 ? waypoints[0] : null;
+        const center = firstWaypoint ? [firstWaypoint.lng, firstWaypoint.lat] : [18.6483, -33.8340];
+
+        const output = {
+            name: document.getElementById('trail-name').value,
+            id: document.getElementById('trail-id').value,
+            difficulty: document.getElementById('trail-difficulty').value,
+            duration: document.getElementById('trail-duration').value,
+            distance: document.getElementById('trail-distance').value,
+            elevation: document.getElementById('trail-elevation').value,
+            description: document.getElementById('trail-description').value,
+            coordinates: center,
+            center: center,
+            waypoints: {
+                type: "FeatureCollection",
+                features: waypoints.map(w => ({
+                    type: "Feature",
+                    geometry: { type: "Point", coordinates: [w.lng, w.lat] },
+                    properties: { 
+                        name: w.name, 
+                        desc: w.desc || '',
+                        image: w.image || ''
+                    }
+                }))
+            },
+            weather: {
+                best_season: document.getElementById('trail-best-season').value
+            },
+            facilities: facilities,
+            safety_tips: safetyTips
+        };
+        
+        // Remove empty fields
+        Object.keys(output).forEach(key => {
+            if (output[key] === '' || (Array.isArray(output[key]) && output[key].length === 0)) {
+                delete output[key];
+            }
+        });
+        
+        document.getElementById('json-output').value = JSON.stringify(output, null, 2);
+    }
 
     function copyJSON() {
         const copyText = document.getElementById("json-output");
         copyText.select();
         document.execCommand("copy");
-        alert("Updated JSON copied!");
+        
+        // Visual feedback
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = '✅ Copied!';
+        setTimeout(() => {
+            btn.innerText = originalText;
+        }, 2000);
     }
+
+    function downloadJSON() {
+        const id = document.getElementById('trail-id').value || 'trail';
+        const json = document.getElementById('json-output').value;
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${id}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Live preview when photo URL changes
+    document.getElementById('edit-waypoint-photo').addEventListener('input', function(e) {
+        const url = e.target.value;
+        const photoPreview = document.getElementById('photo-preview');
+        const photoPlaceholder = document.querySelector('.photo-placeholder');
+        
+        if (url) {
+            photoPreview.src = url;
+            photoPreview.style.display = 'block';
+            photoPlaceholder.style.display = 'none';
+        } else {
+            photoPreview.style.display = 'none';
+            photoPlaceholder.style.display = 'flex';
+        }
+    });
+
+    // Handle photo load error
+    document.getElementById('photo-preview').addEventListener('error', function() {
+        this.style.display = 'none';
+        document.querySelector('.photo-placeholder').style.display = 'flex';
+        document.querySelector('.photo-placeholder').innerHTML = '❌ Invalid image URL';
+    });
 
     map.on('load', fetchList);
 </script>

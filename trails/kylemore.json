@@ -1,5 +1,15 @@
 {
   "name": "Kylemore Waterfall Trail",
+   "id": "kylemore",
+  "difficulty": "Moderate",
+  "duration": "1.5-2 hours",
+  "distance": "10.2 km round trip",
+  "elevation": "450 m",
+  "description": "You choose the distance, you choose the difficulty. There are two waterfalls to visit, the Pipetrack waterfall and the Hidden waterfall, make sure to follow the waypoints to see the Hidden waterfall on your hike.",
+  "coordinates": [
+    118.953,
+    -33.9154
+  ],
   "center": [
     18.953495854253447,
     -33.915442905903895
@@ -18,7 +28,8 @@
         },
         "properties": {
           "name": "Trailhead Parking",
-          "desc": "Secure parking at the end of the road."
+          "desc": "Secure parking at the end of the road.",
+		  "image":"https://lh3.googleusercontent.com/gps-cs-s/AHVAweoGpZqA3FaJCsbJeqQuu_taseKA0b_ocQYVHVygS4qYGW-380bl9uv3lhU48SO0D6aJhxpuYIXmOxKSFsm5O4g7p_LajJXznfMq40vbdf25bqfGClkSnSEBLJeahFa0DFwYj1EW=w426-h240-k-no"
         }
       },
       {
@@ -60,7 +71,8 @@
         },
         "properties": {
           "name": "Steep Ravine",
-          "desc": "The final climb before the falls."
+          "desc": "The final climb before the falls.",
+		  "image": "https://lh3.googleusercontent.com/gps-cs-s/AHVAwerwmooeXJ1ZR77vn506iP_LkFirv1tP6VOGbzli97sPegTlu0-G4i3e9AqaU0vXnc41kdfiUCeh_SHLFPsaYTwNkeIs0akZ5GX0xJChLf-AhGO5Gryli602MwkQChn10OVQBSaQirQdP58=w408-h544-k-no"
         }
       },
       {
@@ -74,9 +86,11 @@
         },
         "properties": {
           "name": "Kylemore Waterfall",
-          "desc": "The main falls. Great for a swim!"
+          "desc": "The main falls. Great for a swim!",
+		  "image": "https://lh3.googleusercontent.com/gps-cs-s/AHVAwerwmooeXJ1ZR77vn506iP_LkFirv1tP6VOGbzli97sPegTlu0-G4i3e9AqaU0vXnc41kdfiUCeh_SHLFPsaYTwNkeIs0akZ5GX0xJChLf-AhGO5Gryli602MwkQChn10OVQBSaQirQdP58=w408-h544-k-no"
         }
       }
     ]
   }
 }
+

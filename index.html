@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELM Hike Explorer</title>
+    <title>Hike Explorer PWA</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3bb2d0">
@@ -69,41 +69,168 @@
         
         /* Custom popup styles */
         .maplibregl-popup-content {
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
             border: none;
-            max-width: 250px;
+            max-width: 280px;
+            overflow: hidden;
+        }
+        
+        .waypoint-popup {
+            width: 100%;
+        }
+        
+        .waypoint-popup-image {
+            width: 100%;
+            height: 150px;
+            background-size: cover;
+            background-position: center;
+            background-color: #f1f3f5;
+            position: relative;
+        }
+        
+        .waypoint-popup-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .waypoint-popup-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 40px;
+        }
+        
+        .waypoint-popup-content {
+            padding: 16px;
         }
         
         .waypoint-popup-name {
             font-weight: bold;
-            font-size: 16px;
+            font-size: 18px;
             color: #2c3e50;
-            margin-bottom: 5px;
-            padding-right: 20px;
+            margin-bottom: 6px;
+            padding-right: 24px;
         }
         
         .waypoint-popup-desc {
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 10px;
-            line-height: 1.4;
+            font-size: 14px;
+            color: #5a6a7a;
+            margin-bottom: 12px;
+            line-height: 1.5;
         }
         
         .waypoint-popup-coords {
-            font-size: 10px;
+            font-size: 11px;
             color: #95a5a6;
-            border-top: 1px solid #ecf0f1;
-            padding-top: 8px;
+            border-top: 1px solid #edf2f7;
+            padding-top: 10px;
             margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .waypoint-popup-coords span {
+            background: #f7f9fc;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-family: monospace;
+        }
+        
+        .waypoint-popup-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+        
+        .waypoint-popup-weather {
+            font-size: 11px;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         
         .maplibregl-popup-close-button {
-            font-size: 16px;
-            color: #95a5a6;
+            font-size: 18px;
+            color: white;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            line-height: 1;
+            top: 8px;
             right: 8px;
-            top: 5px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        
+        .maplibregl-popup-close-button:hover {
+            background: rgba(0,0,0,0.5);
+        }
+        
+        .maplibregl-popup-tip {
+            display: none;
+        }
+        
+        /* Image gallery navigation */
+        .popup-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.8);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .popup-nav:hover {
+            background: white;
+        }
+        
+        .popup-nav.prev {
+            left: 8px;
+        }
+        
+        .popup-nav.next {
+            right: 8px;
+        }
+        
+        /* Image counter */
+        .image-counter {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            z-index: 10;
         }
     </style>
 </head>
@@ -145,6 +272,8 @@
     let deferredPrompt;
     let currentTrailData = null; // Store current trail data for popups
     let popup = null; // Single popup instance
+    let currentImageIndex = 0;
+    let currentImages = [];
 
     // --- PWA INSTALL LOGIC ---
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -269,7 +398,35 @@
         } catch (e) { log("List Error"); }
     }
 
-    // Function to show waypoint popup
+    // Function to navigate images in popup
+    function navigateImage(direction) {
+        if (currentImages.length === 0) return;
+        
+        currentImageIndex = (currentImageIndex + direction + currentImages.length) % currentImages.length;
+        updatePopupImage();
+    }
+
+    // Update popup with current image
+    function updatePopupImage() {
+        const imageContainer = document.getElementById('popup-image-container');
+        const counter = document.getElementById('image-counter');
+        
+        if (imageContainer && currentImages.length > 0) {
+            const imageUrl = currentImages[currentImageIndex];
+            imageContainer.innerHTML = `<img src="${imageUrl}" alt="Waypoint view" onerror="this.parentElement.innerHTML='<div class=\'waypoint-popup-image-placeholder\'>📸</div>'">`;
+            
+            if (counter) {
+                if (currentImages.length > 1) {
+                    counter.style.display = 'block';
+                    counter.textContent = `${currentImageIndex + 1}/${currentImages.length}`;
+                } else {
+                    counter.style.display = 'none';
+                }
+            }
+        }
+    }
+
+    // Function to show waypoint popup with photo support
     function showWaypointPopup(feature, lngLat) {
         // Remove existing popup
         if (popup) popup.remove();
@@ -277,13 +434,50 @@
         const coordinates = feature.geometry.coordinates;
         const props = feature.properties || {};
         
+        // Collect images (main image + any additional ones)
+        currentImages = [];
+        if (props.image) {
+            currentImages.push(props.image);
+        }
+        // You could add support for multiple images here if needed
+        // if (props.images && Array.isArray(props.images)) {
+        //     currentImages = [...currentImages, ...props.images];
+        // }
+        
+        currentImageIndex = 0;
+        
         // Create popup content
         const content = document.createElement('div');
+        content.className = 'waypoint-popup';
+        
+        // Image section
+        const imageHtml = currentImages.length > 0 
+            ? `<div class="waypoint-popup-image" id="popup-image-container">
+                <img src="${currentImages[0]}" alt="${props.name}" onerror="this.parentElement.innerHTML='<div class=\'waypoint-popup-image-placeholder\'>📸</div>'">
+                ${currentImages.length > 1 ? `
+                    <button class="popup-nav prev" onclick="navigateImage(-1)">←</button>
+                    <button class="popup-nav next" onclick="navigateImage(1)">→</button>
+                    <div class="image-counter" id="image-counter">1/${currentImages.length}</div>
+                ` : ''}
+               </div>`
+            : `<div class="waypoint-popup-image">
+                <div class="waypoint-popup-image-placeholder">📍</div>
+               </div>`;
+        
         content.innerHTML = `
-            <div class="waypoint-popup-name">${props.name || 'Waypoint'}</div>
-            <div class="waypoint-popup-desc">${props.desc || 'No description available'}</div>
-            <div class="waypoint-popup-coords">
-                ${coordinates[1].toFixed(5)}°, ${coordinates[0].toFixed(5)}°
+            ${imageHtml}
+            <div class="waypoint-popup-content">
+                <div class="waypoint-popup-name">${props.name || 'Waypoint'}</div>
+                <div class="waypoint-popup-desc">${props.desc || 'No description available'}</div>
+                <div class="waypoint-popup-coords">
+                    <span>${coordinates[1].toFixed(5)}°</span>
+                    <span>${coordinates[0].toFixed(5)}°</span>
+                </div>
+                <div class="waypoint-popup-footer">
+                    <div class="waypoint-popup-weather">
+                        ${props.weather || '📍 Trail feature'}
+                    </div>
+                </div>
             </div>
         `;
         
@@ -291,11 +485,15 @@
         popup = new maplibregl.Popup({
             closeButton: true,
             closeOnClick: false,
-            offset: 25
+            offset: 25,
+            className: 'waypoint-popup-wrapper'
         })
             .setLngLat(lngLat || coordinates)
             .setDOMContent(content)
             .addTo(map);
+        
+        // Store image navigation functions globally for button access
+        window.navigateImage = navigateImage;
     }
 
     async function switchTrail(id) {
@@ -484,6 +682,7 @@
     window.toggleOverlay = toggleOverlay;
     window.viewTrailDetails = viewTrailDetails;
     window.shareTrail = shareTrail;
+    window.navigateImage = navigateImage;
 </script>
 </body>
 </html>
