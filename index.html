@@ -33,11 +33,12 @@
         .action-row { display: flex; gap: 8px; margin-bottom: 5px; }
         input { flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; width: 100%; box-sizing: border-box; }
         
-        .btn { padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; color: white; transition: opacity 0.2s; }
+        .btn { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; color: white; transition: opacity 0.2s; font-size: 14px; }
         .btn:active { opacity: 0.7; }
         
         .go-btn { background: #3bb2d0; width: 60px; }
         .gps-btn { background: #4caf50; width: 50px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        #install-btn { background: #FF9800; width: 100%; margin-top: 10px; display: none; }
 
         #results-list { 
             max-height: 180px; overflow-y: auto; background: #fff; 
@@ -60,7 +61,7 @@
         <div class="action-row">
             <input type="text" id="search-input" placeholder="Search map..." onkeypress="if(event.key==='Enter') searchLocation()">
             <button class="btn go-btn" onclick="searchLocation()">GO</button>
-            <button class="btn gps-btn" onclick="centerOnUser()" title="Center on Me">📍</button>
+            <button class="btn gps-btn" onclick="centerOnUser()">📍</button>
         </div>
 
         <div id="results-list"></div>
@@ -68,7 +69,10 @@
         <select id="trail-select" onchange="switchTrail(this.value)"></select>
 
         <div id="weather-container"></div>
-        <div id="status-log">System Ready</div>
+        
+        <button id="install-btn" class="btn">📲 Install App to Phone</button>
+
+        <div id="status-log">Ready</div>
     </div>
     <button onclick="toggleOverlay()" style="background:none; border:none; color:#ddd; width:100%; padding:8px; font-size: 10px; cursor: pointer;">⬤ MENU ⬤</button>
 </div>
@@ -78,7 +82,36 @@
 <script>
     const log = (msg) => document.getElementById('status-log').innerText = msg;
     let userCoords = null;
+    let deferredPrompt;
 
+    // --- PWA INSTALL LOGIC ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later.
+        deferredPrompt = e;
+        // Update UI notify the user they can install the PWA
+        document.getElementById('install-btn').style.display = 'block';
+    });
+
+    document.getElementById('install-btn').addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                log('App Installed');
+            }
+            deferredPrompt = null;
+            document.getElementById('install-btn').style.display = 'none';
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        log('Installation Complete');
+        document.getElementById('install-btn').style.display = 'none';
+    });
+
+    // --- MAP & TRAIL LOGIC ---
     const map = new maplibregl.Map({
         container: 'map',
         style: {
@@ -90,59 +123,41 @@
         zoom: 12
     });
 
-    // --- GPS FUNCTIONS ---
     function centerOnUser() {
         if (userCoords) {
             map.flyTo({ center: userCoords, zoom: 15 });
-            log("Centered on you");
             fetchWeather(userCoords[0], userCoords[1]);
         } else {
-            log("Waiting for GPS signal...");
-            alert("Ensure GPS is on and permissions are granted!");
+            log("Locating...");
         }
     }
 
-    // --- SEARCH FUNCTIONS ---
     async function searchLocation() {
         const query = document.getElementById('search-input').value;
         const listDiv = document.getElementById('results-list');
         if (!query) return;
-
-        log("Fetching results...");
-        const bounds = map.getBounds();
-        const viewbox = `${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()},${bounds.getSouth()}`;
-
         try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=0&limit=5`);
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
             const data = await res.json();
-
-            if (data.length === 0) {
-                log("No results found");
-                listDiv.style.display = 'none';
-            } else if (data.length === 1) {
-                selectPlace(data[0].lon, data[0].lat, data[0].display_name);
-            } else {
+            if (data.length > 0) {
                 listDiv.innerHTML = '';
                 listDiv.style.display = 'block';
                 data.forEach(place => {
                     const item = document.createElement('div');
                     item.className = 'result-item';
                     item.innerText = place.display_name.split(',').slice(0,3).join(',');
-                    item.onclick = () => selectPlace(place.lon, place.lat, place.display_name);
+                    item.onclick = () => {
+                        map.flyTo({ center: [parseFloat(place.lon), parseFloat(place.lat)], zoom: 14 });
+                        listDiv.style.display = 'none';
+                        document.getElementById('search-input').value = place.display_name.split(',')[0];
+                        fetchWeather(place.lon, place.lat);
+                    };
                     listDiv.appendChild(item);
                 });
             }
         } catch (e) { log("Search Error"); }
     }
 
-    function selectPlace(lon, lat, name) {
-        document.getElementById('results-list').style.display = 'none';
-        map.flyTo({ center: [parseFloat(lon), parseFloat(lat)], zoom: 14 });
-        document.getElementById('search-input').value = name.split(',')[0];
-        fetchWeather(lon, lat);
-    }
-
-    // --- TRAIL & WEATHER FUNCTIONS ---
     async function initTrailSystem() {
         try {
             const response = await fetch('./trails/list.json');
@@ -155,7 +170,7 @@
                 select.appendChild(opt);
             });
             if(trailList.length > 0) switchTrail(trailList[0].id);
-        } catch (e) { log("list.json error"); }
+        } catch (e) { log("List Error"); }
     }
 
     async function switchTrail(id) {
@@ -169,7 +184,7 @@
                 map.addLayer({ id: 'hike-layer', type: 'circle', source: 'hike-pts', paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
             } else { map.getSource('hike-pts').setData(data.waypoints); }
             fetchWeather(data.center[0], data.center[1]);
-        } catch(e) { log("JSON error"); }
+        } catch(e) { log("JSON Error"); }
     }
 
     async function fetchWeather(lon, lat) {
@@ -182,10 +197,9 @@
                 const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
                 container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
             }
-        } catch(e) { log("Weather offline"); }
+        } catch(e) { log("Weather Off"); }
     }
 
-    // --- BOOT ---
     map.on('load', () => {
         initTrailSystem();
         map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
@@ -200,13 +214,14 @@
                 });
             }, null, { enableHighAccuracy: true });
         }
-
-        map.on('click', 'hike-layer', (e) => {
-            new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${e.features[0].properties.name}</b>`).addTo(map);
-        });
     });
 
     function toggleOverlay() { document.getElementById('main-overlay').classList.toggle('collapsed'); }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js');
+    }
 </script>
 </body>
 </html>
