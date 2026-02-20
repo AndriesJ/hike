@@ -46,7 +46,58 @@
         }
         .result-item { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; cursor: pointer; }
 
-        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; margin-bottom: 10px; background: #f9f9f9; }
+        .trail-select-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .trail-select-container select {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            background: #f9f9f9;
+        }
+        
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+        
+        .refresh-btn:active {
+            transform: rotate(180deg);
+            transition: transform 0.3s;
+        }
+        
+        .refresh-btn.loading {
+            animation: spin 1s linear infinite;
+            background: #95a5a6;
+            cursor: wait;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 5px; padding-bottom: 5px; }
         .weather-card { text-align: center; min-width: 55px; background: #f1f3f5; padding: 8px; border-radius: 8px; font-size: 11px; border: 1px solid #eee; }
         #status-log { font-size: 10px; color: #aaa; text-transform: uppercase; margin-top: 5px; }
@@ -232,6 +283,14 @@
             font-size: 10px;
             z-index: 10;
         }
+        
+        /* Last updated indicator */
+        .last-updated {
+            font-size: 9px;
+            color: #95a5a6;
+            margin-top: 5px;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -248,7 +307,10 @@
 
         <div id="results-list"></div>
 
-        <select id="trail-select" onchange="switchTrail(this.value)"></select>
+        <div class="trail-select-container">
+            <select id="trail-select" onchange="switchTrail(this.value)"></select>
+            <button class="refresh-btn" onclick="refreshTrailList()" id="refresh-trails-btn" title="Refresh trail list">↻</button>
+        </div>
 
         <div id="weather-container"></div>
         
@@ -260,6 +322,7 @@
         <button id="install-btn" class="btn">📲 Install App to Phone</button>
 
         <div id="status-log">Ready</div>
+        <div id="last-updated" class="last-updated"></div>
     </div>
     <button onclick="toggleOverlay()" style="background:none; border:none; color:#ddd; width:100%; padding:8px; font-size: 10px; cursor: pointer;">⬤ MENU ⬤</button>
 </div>
@@ -372,6 +435,81 @@
         } catch (e) { log("Search Error"); }
     }
 
+    // Update last updated timestamp
+    function updateLastUpdated() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('last-updated').innerText = `Trails updated: ${timeString}`;
+    }
+
+    // Refresh trail list
+    async function refreshTrailList() {
+        const refreshBtn = document.getElementById('refresh-trails-btn');
+        const select = document.getElementById('trail-select');
+        const currentValue = select.value;
+        
+        // Add loading animation
+        refreshBtn.classList.add('loading');
+        refreshBtn.disabled = true;
+        refreshBtn.style.cursor = 'wait';
+        
+        log("Refreshing trail list...");
+        
+        try {
+            // Bypass cache by adding a timestamp parameter
+            const response = await fetch(`./trails/list.json?t=${Date.now()}`);
+            const trailList = await response.json();
+            
+            // Store current selection
+            select.innerHTML = ''; 
+            
+            trailList.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id; 
+                opt.textContent = t.name;
+                select.appendChild(opt);
+            });
+            
+            // Try to restore previous selection
+            if (currentValue && document.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+                // Optionally refresh current trail data
+                switchTrail(currentValue);
+            } else if (trailList.length > 0) {
+                // If previous selection no longer exists, load first trail
+                switchTrail(trailList[0].id);
+            }
+            
+            log("Trail list refreshed");
+            updateLastUpdated();
+            
+            // Show success message briefly
+            refreshBtn.style.background = '#2ecc71';
+            setTimeout(() => {
+                refreshBtn.style.background = '#3498db';
+            }, 500);
+            
+        } catch (e) { 
+            log("Failed to refresh trail list");
+            console.error(e);
+            
+            // Show error state
+            refreshBtn.style.background = '#e74c3c';
+            setTimeout(() => {
+                refreshBtn.style.background = '#3498db';
+            }, 1000);
+        } finally {
+            // Remove loading animation
+            refreshBtn.classList.remove('loading');
+            refreshBtn.disabled = false;
+            refreshBtn.style.cursor = 'pointer';
+        }
+    }
+
     async function initTrailSystem() {
         try {
             const response = await fetch('./trails/list.json');
@@ -395,7 +533,11 @@
                     switchTrail(trailList[0].id);
                 }
             }
-        } catch (e) { log("List Error"); }
+            updateLastUpdated();
+        } catch (e) { 
+            log("List Error");
+            console.error(e);
+        }
     }
 
     // Function to navigate images in popup
@@ -498,7 +640,7 @@
 
     async function switchTrail(id) {
         try {
-            const res = await fetch(`./trails/${id}.json`);
+            const res = await fetch(`./trails/${id}.json?t=${Date.now()}`); // Add timestamp to bypass cache
             const data = await res.json();
             currentTrailData = data; // Store for popups
             document.getElementById('trail-title').innerText = data.name;
@@ -675,6 +817,11 @@
         }
     });
 
+    // Auto-refresh trail list every 5 minutes
+    setInterval(() => {
+        refreshTrailList();
+    }, 300000); // 5 minutes
+
     // Expose functions globally
     window.centerOnUser = centerOnUser;
     window.searchLocation = searchLocation;
@@ -683,6 +830,7 @@
     window.viewTrailDetails = viewTrailDetails;
     window.shareTrail = shareTrail;
     window.navigateImage = navigateImage;
+    window.refreshTrailList = refreshTrailList;
 </script>
 </body>
 </html>
