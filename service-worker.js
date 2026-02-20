@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hike-v2-2';
+const CACHE_NAME = 'hike-v2-3-0';
 const ASSETS = [
     './',
     './index.html',
