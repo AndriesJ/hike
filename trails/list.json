@@ -1,7 +1,7 @@
 [
-  {"id": "kylemore", "name": "Kylemore Waterfall"},
-  {"id": "lionshead", "name": "Lion's Head"},
-  {"id": "jonkershoek", "name": "Jonkershoek Reserve"},
-  {"id": "ceciliaforest", "name": "Cecilia Forest"},
-  {"id": "plattekloof-tortoise", "name": "Plattekloof nature Reserve Tortoise"}
+  {"id": "kylemore", "name": "Kylemore Waterfall", "difficulty": "Easy", "duration": "45 min", "distance": "2.5 km"},
+  {"id": "lionshead", "name": "Lion's Head", "difficulty": "Moderate", "duration": "1.5-2 hours", "distance": "5.5 km"},
+  {"id": "jonkershoek", "name": "Jonkershoek Reserve", "difficulty": "Moderate to Hard", "duration": "3-4 hours", "distance": "12 km"},
+  {"id": "ceciliaforest", "name": "Cecilia Forest", "difficulty": "Easy", "duration": "1 hour", "distance": "3.5 km"},
+  {"id": "plattekloof-tortoise", "name": "Plattekloof Nature Reserve", "difficulty": "Easy", "duration": "30 min", "distance": "1.8 km"}
 ]

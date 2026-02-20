@@ -1,14 +1,112 @@
 {
-    "name": "Lion's Head Summit",
-    "center": [18.3890, -33.9350],
-    "waypoints": {
-        "type": "FeatureCollection",
-        "features": [
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3890, -33.9350] }, "properties": { "name": "Main Entrance", "desc": "Start of the gravel jeep track." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3855, -33.9365] }, "properties": { "name": "Paraglider Launch", "desc": "Watch the jumpers on a windy day." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3872, -33.9348] }, "properties": { "name": "The Staples", "desc": "The climbing section with metal rungs." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3885, -33.9355] }, "properties": { "name": "Cave View", "desc": "Look left for the small cave in the rock." } },
-            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [18.3892, -33.9349] }, "properties": { "name": "Summit Peak", "desc": "360-degree views of Cape Town." } }
-        ]
-    }
+  "name": "Lion's Head Summit",
+  "id": "lionshead",
+  "difficulty": "Moderate",
+  "duration": "1.5-2 hours",
+  "distance": "5.5 km round trip",
+  "elevation": "350 m",
+  "description": "One of Cape Town's most iconic hikes, Lion's Head offers a thrilling ascent with ladders, chains, and amazing 360-degree views of the city, Table Mountain, and the Atlantic Ocean. Best hiked during full moon for a truly magical experience.",
+  "coordinates": [
+    18.3892,
+    -33.9349
+  ],
+  "center": [
+    18.39454223184657,
+    -33.94054319731605
+  ],
+  "waypoints": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.39454223184657,
+            -33.94054319731605
+          ]
+        },
+        "properties": {
+          "name": "Main Entrance",
+          "desc": "Start of the gravel jeep track. Parking available at the base.",
+          "image": "https://example.com/lionshead-start.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.3855,
+            -33.9365
+          ]
+        },
+        "properties": {
+          "name": "Paraglider Launch",
+          "desc": "Watch the jumpers on a windy day. Incredible views of Camps Bay.",
+          "image": "https://example.com/paragliders.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.3872,
+            -33.9348
+          ]
+        },
+        "properties": {
+          "name": "The Staples",
+          "desc": "The climbing section with metal rungs. Hold on tight!",
+          "image": "https://example.com/staples.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.38971918445057,
+            -33.93737701333914
+          ]
+        },
+        "properties": {
+          "name": "Cave View",
+          "desc": "Look left for the small cave in the rock. Great photo opportunity.",
+          "image": "https://example.com/cave-view.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.3892,
+            -33.9349
+          ]
+        },
+        "properties": {
+          "name": "Summit Peak",
+          "desc": "360-degree views of Cape Town, Table Mountain, and the Atlantic Seaboard.",
+          "image": "https://example.com/summit.jpg"
+        }
+      }
+    ]
+  },
+  "weather": {
+    "best_season": "Year-round (avoid strong winds)",
+    "sunrise_tip": "Start 1 hour before sunrise for spectacular views"
+  },
+  "facilities": [
+    "Parking at base",
+    "No water on trail",
+    "No restrooms"
+  ],
+  "safety_tips": [
+    "Wear good hiking shoes",
+    "Bring at least 1L water",
+    "Check weather before starting",
+    "Avoid during lightning"
+  ]
 }

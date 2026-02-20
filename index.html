@@ -50,6 +50,61 @@
         #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 5px; padding-bottom: 5px; }
         .weather-card { text-align: center; min-width: 55px; background: #f1f3f5; padding: 8px; border-radius: 8px; font-size: 11px; border: 1px solid #eee; }
         #status-log { font-size: 10px; color: #aaa; text-transform: uppercase; margin-top: 5px; }
+        
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .details-btn {
+            background: #9b59b6;
+            flex: 1;
+        }
+        
+        .share-btn {
+            background: #3498db;
+            flex: 1;
+        }
+        
+        /* Custom popup styles */
+        .maplibregl-popup-content {
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: none;
+            max-width: 250px;
+        }
+        
+        .waypoint-popup-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            padding-right: 20px;
+        }
+        
+        .waypoint-popup-desc {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        
+        .waypoint-popup-coords {
+            font-size: 10px;
+            color: #95a5a6;
+            border-top: 1px solid #ecf0f1;
+            padding-top: 8px;
+            margin-top: 5px;
+        }
+        
+        .maplibregl-popup-close-button {
+            font-size: 16px;
+            color: #95a5a6;
+            right: 8px;
+            top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -59,8 +114,8 @@
         <h3 style="margin:0 0 10px 0; color: #333;" id="trail-title">Hike Explorer</h3>
         
         <div class="action-row">
-            <input type="text" id="search-input" placeholder="Search map..." onkeypress="if(event.key==='Enter') searchLocation()">
-            <button class="btn go-btn" onclick="searchLocation()">GO</button>
+            <!-- <input type="text" id="search-input" placeholder="Search map..." onkeypress="if(event.key==='Enter') searchLocation()">
+            <button class="btn go-btn" onclick="searchLocation()">GO</button> -->
             <button class="btn gps-btn" onclick="centerOnUser()">📍</button>
         </div>
 
@@ -69,6 +124,11 @@
         <select id="trail-select" onchange="switchTrail(this.value)"></select>
 
         <div id="weather-container"></div>
+        
+        <div class="button-row">
+            <button class="btn details-btn" onclick="viewTrailDetails()">📋 View Trail Details</button>
+            <button class="btn share-btn" onclick="shareTrail()">📤 Share Trail</button>
+        </div>
         
         <button id="install-btn" class="btn">📲 Install App to Phone</button>
 
@@ -83,14 +143,13 @@
     const log = (msg) => document.getElementById('status-log').innerText = msg;
     let userCoords = null;
     let deferredPrompt;
+    let currentTrailData = null; // Store current trail data for popups
+    let popup = null; // Single popup instance
 
     // --- PWA INSTALL LOGIC ---
     window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent Chrome 67 and earlier from automatically showing the prompt
         e.preventDefault();
-        // Stash the event so it can be triggered later.
         deferredPrompt = e;
-        // Update UI notify the user they can install the PWA
         document.getElementById('install-btn').style.display = 'block';
     });
 
@@ -123,12 +182,38 @@
         zoom: 12
     });
 
+    // Add navigation control
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
     function centerOnUser() {
         if (userCoords) {
             map.flyTo({ center: userCoords, zoom: 15 });
             fetchWeather(userCoords[0], userCoords[1]);
         } else {
             log("Locating...");
+            // Try to get location if not already available
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    userCoords = [pos.coords.longitude, pos.coords.latitude];
+                    map.flyTo({ center: userCoords, zoom: 15 });
+                    updateUserLocationOnMap(userCoords);
+                    fetchWeather(userCoords[0], userCoords[1]);
+                }, (error) => {
+                    log("Location access denied");
+                });
+            }
+        }
+    }
+
+    function updateUserLocationOnMap(coords) {
+        if (map.getSource('me')) {
+            map.getSource('me').setData({
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "geometry": { "type": "Point", "coordinates": coords }
+                }]
+            });
         }
     }
 
@@ -166,62 +251,239 @@
             select.innerHTML = ''; 
             trailList.forEach(t => {
                 const opt = document.createElement('option');
-                opt.value = t.id; opt.textContent = t.name;
+                opt.value = t.id; 
+                opt.textContent = t.name;
                 select.appendChild(opt);
             });
-            if(trailList.length > 0) switchTrail(trailList[0].id);
+            if(trailList.length > 0) {
+                // Check if there's a trail in URL, otherwise load first
+                const urlParams = new URLSearchParams(window.location.search);
+                const trailId = urlParams.get('trail');
+                if (trailId && document.querySelector(`option[value="${trailId}"]`)) {
+                    select.value = trailId;
+                    switchTrail(trailId);
+                } else {
+                    switchTrail(trailList[0].id);
+                }
+            }
         } catch (e) { log("List Error"); }
+    }
+
+    // Function to show waypoint popup
+    function showWaypointPopup(feature, lngLat) {
+        // Remove existing popup
+        if (popup) popup.remove();
+        
+        const coordinates = feature.geometry.coordinates;
+        const props = feature.properties || {};
+        
+        // Create popup content
+        const content = document.createElement('div');
+        content.innerHTML = `
+            <div class="waypoint-popup-name">${props.name || 'Waypoint'}</div>
+            <div class="waypoint-popup-desc">${props.desc || 'No description available'}</div>
+            <div class="waypoint-popup-coords">
+                ${coordinates[1].toFixed(5)}°, ${coordinates[0].toFixed(5)}°
+            </div>
+        `;
+        
+        // Create and show popup
+        popup = new maplibregl.Popup({
+            closeButton: true,
+            closeOnClick: false,
+            offset: 25
+        })
+            .setLngLat(lngLat || coordinates)
+            .setDOMContent(content)
+            .addTo(map);
     }
 
     async function switchTrail(id) {
         try {
             const res = await fetch(`./trails/${id}.json`);
             const data = await res.json();
+            currentTrailData = data; // Store for popups
             document.getElementById('trail-title').innerText = data.name;
             map.flyTo({ center: data.center, zoom: 14 });
+            
+            // Update or create source and layer
             if (!map.getSource('hike-pts')) {
                 map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
-                map.addLayer({ id: 'hike-layer', type: 'circle', source: 'hike-pts', paint: { 'circle-radius': 12, 'circle-color': '#FF5252', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
-            } else { map.getSource('hike-pts').setData(data.waypoints); }
+                map.addLayer({ 
+                    id: 'hike-layer', 
+                    type: 'circle', 
+                    source: 'hike-pts', 
+                    paint: { 
+                        'circle-radius': 12, 
+                        'circle-color': '#FF5252', 
+                        'circle-stroke-width': 3, 
+                        'circle-stroke-color': '#fff' 
+                    }
+                });
+                
+                // Add click handler for waypoints
+                map.on('click', 'hike-layer', (e) => {
+                    if (e.features && e.features.length > 0) {
+                        const feature = e.features[0];
+                        showWaypointPopup(feature, e.lngLat);
+                    }
+                });
+                
+                // Change cursor on hover
+                map.on('mouseenter', 'hike-layer', () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+                
+                map.on('mouseleave', 'hike-layer', () => {
+                    map.getCanvas().style.cursor = '';
+                });
+            } else { 
+                map.getSource('hike-pts').setData(data.waypoints); 
+            }
+            
             fetchWeather(data.center[0], data.center[1]);
-        } catch(e) { log("JSON Error"); }
+            
+            // Update URL without reloading
+            const url = new URL(window.location);
+            url.searchParams.set('trail', id);
+            window.history.pushState({}, '', url);
+        } catch(e) { 
+            log("JSON Error");
+            console.error(e);
+        }
+    }
+
+    // View trail details
+    function viewTrailDetails() {
+        const select = document.getElementById('trail-select');
+        const selectedTrail = select.value;
+        if (selectedTrail) {
+            window.location.href = `trail-details.html?id=${selectedTrail}`;
+        } else {
+            alert('Please select a trail first');
+        }
+    }
+
+    // Share trail
+    function shareTrail() {
+        const select = document.getElementById('trail-select');
+        const selectedTrail = select.value;
+        const selectedName = select.options[select.selectedIndex]?.text;
+        
+        if (!selectedTrail) {
+            alert('Please select a trail first');
+            return;
+        }
+
+        const shareData = {
+            title: 'Hike Explorer',
+            text: `Check out ${selectedName} on Hike Explorer!`,
+            url: `${window.location.origin}${window.location.pathname}?trail=${selectedTrail}`
+        };
+
+        if (navigator.share) {
+            navigator.share(shareData).catch(() => {});
+        } else {
+            // Fallback - copy to clipboard
+            navigator.clipboard.writeText(shareData.url).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this link:', shareData.url);
+            });
+        }
     }
 
     async function fetchWeather(lon, lat) {
         try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&timezone=auto`);
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
             const data = await res.json();
             const container = document.getElementById('weather-container');
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
                 const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
-                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
+                const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
+                const minTemp = Math.round(data.daily.temperature_2m_min[i]);
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${maxTemp}°<br><span style="color:#666;">${minTemp}°</span></div>`;
             }
-        } catch(e) { log("Weather Off"); }
+        } catch(e) { 
+            log("Weather Off");
+            document.getElementById('weather-container').innerHTML = '<div class="weather-card">Weather unavailable</div>';
+        }
     }
 
     map.on('load', () => {
         initTrailSystem();
-        map.addSource('me', { type: 'geojson', data: { "type": "FeatureCollection", "features": [] } });
-        map.addLayer({ id: 'me-layer', type: 'circle', source: 'me', paint: { 'circle-radius': 10, 'circle-color': '#007cff', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
+        
+        // Add user location source
+        map.addSource('me', { 
+            type: 'geojson', 
+            data: { 
+                "type": "FeatureCollection", 
+                "features": [] 
+            } 
+        });
+        
+        map.addLayer({ 
+            id: 'me-layer', 
+            type: 'circle', 
+            source: 'me', 
+            paint: { 
+                'circle-radius': 10, 
+                'circle-color': '#007cff', 
+                'circle-stroke-width': 3, 
+                'circle-stroke-color': '#fff' 
+            } 
+        });
 
+        // Start watching user location
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition((pos) => {
                 userCoords = [pos.coords.longitude, pos.coords.latitude];
-                map.getSource('me').setData({
-                    "type": "FeatureCollection",
-                    "features": [{ "type": "Feature", "geometry": { "type": "Point", "coordinates": userCoords } }]
-                });
-            }, null, { enableHighAccuracy: true });
+                updateUserLocationOnMap(userCoords);
+                log("GPS Active");
+            }, (error) => {
+                log("GPS unavailable");
+                console.warn("Geolocation error:", error);
+            }, { 
+                enableHighAccuracy: true,
+                maximumAge: 30000,
+                timeout: 27000
+            });
+        } else {
+            log("Geolocation not supported");
         }
     });
 
-    function toggleOverlay() { document.getElementById('main-overlay').classList.toggle('collapsed'); }
+    function toggleOverlay() { 
+        document.getElementById('main-overlay').classList.toggle('collapsed'); 
+    }
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js');
+        navigator.serviceWorker.register('./service-worker.js').then(reg => {
+            console.log('Service Worker registered');
+        }).catch(err => {
+            console.error('Service Worker registration failed:', err);
+        });
     }
+
+    // Handle popup close on map click
+    map.on('click', (e) => {
+        // Only close popup if not clicking on a waypoint
+        const features = map.queryRenderedFeatures(e.point, { layers: ['hike-layer'] });
+        if (features.length === 0 && popup) {
+            popup.remove();
+            popup = null;
+        }
+    });
+
+    // Expose functions globally
+    window.centerOnUser = centerOnUser;
+    window.searchLocation = searchLocation;
+    window.switchTrail = switchTrail;
+    window.toggleOverlay = toggleOverlay;
+    window.viewTrailDetails = viewTrailDetails;
+    window.shareTrail = shareTrail;
 </script>
 </body>
 </html>

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Trail Details | Hike Explorer</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3bb2d0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3bb2d0 0%, #2c7a9e 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .hero-image {
+            width: 100%;
+            height: 200px;
+            background: #ddd;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-image::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(transparent, rgba(0,0,0,0.5));
+        }
+
+        .difficulty-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .difficulty-easy {
+            background: #4caf50;
+            color: white;
+        }
+
+        .difficulty-moderate {
+            background: #ff9800;
+            color: white;
+        }
+
+        .difficulty-hard {
+            background: #f44336;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #34495e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .description {
+            color: #34495e;
+            line-height: 1.8;
+        }
+
+        .waypoint-list {
+            list-style: none;
+        }
+
+        .waypoint-item {
+            padding: 15px 0;
+            border-bottom: 1px solid #ecf0f1;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .waypoint-item:last-child {
+            border-bottom: none;
+        }
+
+        .waypoint-marker {
+            width: 30px;
+            height: 30px;
+            background: #FF5252;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .waypoint-content {
+            flex-grow: 1;
+        }
+
+        .waypoint-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .waypoint-desc {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .facilities-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            list-style: none;
+        }
+
+        .facility-item {
+            background: #f0f9ff;
+            color: #3498db;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .safety-tip {
+            background: #fff3e0;
+            color: #e67e22;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .weather-card-large {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .weather-icon {
+            font-size: 40px;
+        }
+
+        .weather-info {
+            flex-grow: 1;
+        }
+
+        .weather-temp {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .weather-desc {
+            color: #7f8c8d;
+        }
+
+        .map-preview {
+            width: 100%;
+            height: 150px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            margin-top: 15px;
+            cursor: pointer;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .map-preview:hover .map-preview-overlay {
+            background: rgba(0,0,0,0.5);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .primary-button {
+            flex: 1;
+            background: #3bb2d0;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .primary-button:hover {
+            background: #2da1bd;
+        }
+
+        .secondary-button {
+            flex: 1;
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: #e74c3c;
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .stats-grid {
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <button class="back-button" onclick="goBack()">←</button>
+            <h1 id="trail-title">Loading...</h1>
+            <div class="header-actions">
+                <a href="index.html" class="action-button">Map</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="details-container">
+        <div class="loading">Loading trail details...</div>
+    </div>
+
+    <script>
+
+    let trailData = null;
+    let trailId = null;
+
+    // Get trail ID from URL parameters
+    function getTrailIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('id');
+    }
+
+    // Go back to previous page or index
+    function goBack() {
+        if (document.referrer) {
+            window.history.back();
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+
+    // Navigate to map with this trail selected
+    function goToMap() {
+        if (trailId) {
+            // Pass the trail ID to index.html
+            window.location.href = `index.html?trail=${trailId}`;
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+
+    // Start navigation to trailhead
+    function navigateToTrail() {
+        if (trailData && trailData.coordinates) {
+            const [lng, lat] = trailData.coordinates;
+            window.location.href = `https://maps.google.com/?daddr=${lat},${lng}`;
+        } else if (trailData && trailData.center) {
+            const [lng, lat] = trailData.center;
+            window.location.href = `https://maps.google.com/?daddr=${lat},${lng}`;
+        }
+    }
+
+    // Get difficulty badge class
+    function getDifficultyClass(difficulty) {
+        const diff = difficulty.toLowerCase();
+        if (diff.includes('easy')) return 'difficulty-easy';
+        if (diff.includes('moderate')) return 'difficulty-moderate';
+        return 'difficulty-hard';
+    }
+
+    // Load trail details
+    async function loadTrailDetails() {
+        trailId = getTrailIdFromUrl();
+        
+        if (!trailId) {
+            document.getElementById('details-container').innerHTML = `
+                <div class="error">
+                    <h3>No Trail Selected</h3>
+                    <p>Please select a trail from the map.</p>
+                    <button class="primary-button" onclick="goToMap()" style="margin-top:20px;">Go to Map</button>
+                </div>
+            `;
+            return;
+        }
+
+        try {
+            // Try to load from localStorage first (cached)
+            const cached = localStorage.getItem(`trail_${trailId}`);
+            if (cached) {
+                trailData = JSON.parse(cached);
+                trailData.id = trailId;
+                renderTrailDetails();
+            }
+
+            // Fetch fresh data
+            const response = await fetch(`./trails/${trailId}.json`);
+            trailData = await response.json();
+            
+            // Cache it
+            localStorage.setItem(`trail_${trailId}`, JSON.stringify(trailData));
+            
+            // Add ID to data
+            trailData.id = trailId;
+            
+            renderTrailDetails();
+            
+            // Fetch weather for this location
+            if (trailData.center) {
+                fetchWeather(trailData.center[0], trailData.center[1]);
+            }
+        } catch (e) {
+            console.error('Error loading trail:', e);
+            document.getElementById('details-container').innerHTML = `
+                <div class="error">
+                    <h3>Error Loading Trail</h3>
+                    <p>Could not load trail details. Please try again.</p>
+                    <button class="primary-button" onclick="goToMap()" style="margin-top:20px;">Back to Map</button>
+                </div>
+            `;
+        }
+    }
+
+    // Fetch weather data
+    async function fetchWeather(lon, lat) {
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
+            const data = await res.json();
+            
+            const weatherContainer = document.getElementById('weather-details');
+            if (weatherContainer && data.current_weather) {
+                const temp = data.current_weather.temperature;
+                const weatherCode = data.current_weather.weathercode;
+                
+                let weatherIcon = '☀️';
+                if (weatherCode >= 51 && weatherCode <= 67) weatherIcon = '🌧️';
+                else if (weatherCode >= 71 && weatherCode <= 77) weatherIcon = '❄️';
+                else if (weatherCode >= 80 && weatherCode <= 99) weatherIcon = '⛈️';
+                else if (weatherCode >= 1 && weatherCode <= 3) weatherIcon = '☁️';
+                
+                weatherContainer.innerHTML = `
+                    <div class="weather-card-large">
+                        <div class="weather-icon">${weatherIcon}</div>
+                        <div class="weather-info">
+                            <div class="weather-temp">${Math.round(temp)}°C</div>
+                            <div class="weather-desc">Current conditions at trail</div>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.log('Weather fetch failed');
+            const weatherContainer = document.getElementById('weather-details');
+            if (weatherContainer) {
+                weatherContainer.innerHTML = `
+                    <div class="weather-card-large">
+                        <div class="weather-icon">⏳</div>
+                        <div class="weather-info">
+                            <div class="weather-desc">Weather unavailable</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Render all trail details
+    function renderTrailDetails() {
+        if (!trailData) return;
+
+        document.getElementById('trail-title').textContent = trailData.name || 'Trail Details';
+
+        const container = document.getElementById('details-container');
+        
+        // Generate waypoints HTML
+        const waypointsHTML = trailData.waypoints?.features?.map((wp, index) => `
+            <li class="waypoint-item">
+                <div class="waypoint-marker">${index + 1}</div>
+                <div class="waypoint-content">
+                    <div class="waypoint-name">${wp.properties.name}</div>
+                    <div class="waypoint-desc">${wp.properties.desc || 'No description available'}</div>
+                </div>
+            </li>
+        `).join('') || '<li>No waypoints available</li>';
+
+        // Generate facilities HTML
+        const facilitiesHTML = trailData.facilities?.map(f => `
+            <li class="facility-item">${f}</li>
+        `).join('') || '<li class="facility-item">No facilities listed</li>';
+
+        // Generate safety tips HTML
+        const safetyHTML = trailData.safety_tips?.map(tip => `
+            <div class="safety-tip">⚠️ ${tip}</div>
+        `).join('') || '<div class="safety-tip">⚠️ Always hike safely</div>';
+
+        container.innerHTML = `
+            <div class="hero-image" style="background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://picsum.photos/600/400?random=${trailId}')">
+                <!-- Hero image would ideally come from trail data -->
+            </div>
+
+            <span class="difficulty-badge ${getDifficultyClass(trailData.difficulty || 'Moderate')}">
+                ${trailData.difficulty || 'Moderate'}
+            </span>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value">${trailData.duration || 'N/A'}</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📏</div>
+                    <div class="stat-value">${trailData.distance || 'N/A'}</div>
+                    <div class="stat-label">Distance</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⛰️</div>
+                    <div class="stat-value">${trailData.elevation || 'N/A'}</div>
+                    <div class="stat-label">Elevation</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📝 Description</h2>
+                <p class="description">${trailData.description || 'No description available.'}</p>
+            </div>
+
+            <div class="section">
+                <h2>📍 Waypoints (${trailData.waypoints?.features?.length || 0})</h2>
+                <ul class="waypoint-list">
+                    ${waypointsHTML}
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🌤️ Current Weather</h2>
+                <div id="weather-details">
+                    <div class="loading" style="padding:20px;">Loading weather...</div>
+                </div>
+                <p class="weather-tip" style="margin-top:10px; font-size:0.85rem; color:#7f8c8d;">
+                    Best season: ${trailData.weather?.best_season || 'Year-round'}
+                </p>
+            </div>
+
+            <div class="section">
+                <h2>🏕️ Facilities</h2>
+                <ul class="facilities-list">
+                    ${facilitiesHTML}
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>⚠️ Safety Tips</h2>
+                ${safetyHTML}
+            </div>
+
+            <!-- <div class="action-buttons">
+                <button class="primary-button" onclick="goToMap()">🗺️ View on Map</button>
+                <button class="secondary-button" onclick="navigateToTrail()">🧭 Navigate Here</button>
+            </div> -->
+        `;
+
+        // Trigger weather fetch
+        if (trailData.center) {
+            fetchWeather(trailData.center[0], trailData.center[1]);
+        }
+    }
+
+    // Load details on page load
+    window.addEventListener('load', loadTrailDetails);
+
+    </script>
+</body>
+</html>
