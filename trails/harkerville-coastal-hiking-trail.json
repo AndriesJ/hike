@@ -1,0 +1,65 @@
+{
+  "name": "Harkerville Coastal Hiking Trail",
+  "id": "harkerville-coastal-hiking-trail",
+  "coordinates": [
+    23.23183,
+    -34.04853
+  ],
+  "center": [
+    23.23183,
+    -34.04853
+  ],
+  "waypoints": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            23.23183,
+            -34.04853
+          ]
+        },
+        "properties": {
+          "name": "Trail Start (North End)",
+          "desc": "",
+          "image": ""
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            23.184191501456098,
+            -34.08238388482429
+          ]
+        },
+        "properties": {
+          "name": "Trail End (South End)",
+          "desc": "",
+          "image": ""
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            23.206746232482743,
+            -34.07032420281046
+          ]
+        },
+        "properties": {
+          "name": "Approximate Midpoint",
+          "desc": "",
+          "image": ""
+        }
+      }
+    ]
+  },
+  "weather": {
+    "best_season": ""
+  }
+}
