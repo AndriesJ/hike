@@ -4,6 +4,7 @@
   {"id": "jonkershoek", "name": "Jonkershoek Reserve", "difficulty": "Moderate to Hard", "duration": "3-4 hours", "distance": "12 km"},
   {"id": "ceciliaforest", "name": "Cecilia Forest", "difficulty": "Easy", "duration": "1 hour", "distance": "3.5 km"},
   {"id": "plattekloof-tortoise", "name": "Plattekloof Nature Reserve", "difficulty": "Easy", "duration": "30 min", "distance": "1.8 km"},
-  {"id": "harkerville-coastal-hiking-trail", "name": "Harkerville Coastal hiking trail", "difficulty": "Easy", "duration": "30 min", "distance": "1.8 km"}
+  {"id": "harkerville-coastal-hiking-trail", "name": "Harkerville Coastal hiking trail", "difficulty": "Easy", "duration": "30 min", "distance": "1.8 km"},
+  {"id": "groothike", "name": "Hike with Groot", "difficulty": "Easy", "duration": "30 min", "distance": "1.8 km"}
   
 ]
