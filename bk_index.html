@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELM Hike Explorer PWA</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3bb2d0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <script src='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css' rel='stylesheet' />
+
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
+        #map { width: 100vw; height: 100vh; background: #eee; }
+        
+        .overlay {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            background: white; padding: 15px; border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 768px) {
+            .overlay { width: 420px; left: 50%; margin-left: -210px; border: 1px solid #ddd; border-top: none; }
+        }
+
+        .collapsed { transform: translateY(-92%); }
+        
+        .action-row { display: flex; gap: 8px; margin-bottom: 5px; }
+        input { flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; width: 100%; box-sizing: border-box; }
+        
+        .btn { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; color: white; transition: opacity 0.2s; font-size: 14px; }
+        .btn:active { opacity: 0.7; }
+        
+        .go-btn { background: #3bb2d0; width: 60px; }
+        .gps-btn { background: #4caf50; width: 50px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        #install-btn { background: #FF9800; width: 100%; margin-top: 10px; display: none; }
+
+        #results-list { 
+            max-height: 180px; overflow-y: auto; background: #fff; 
+            border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; display: none;
+        }
+        .result-item { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; cursor: pointer; }
+
+        .trail-select-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .trail-select-container select {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            background: #f9f9f9;
+        }
+        
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+        
+        .refresh-btn:active {
+            transform: rotate(180deg);
+            transition: transform 0.3s;
+        }
+        
+        .refresh-btn.loading {
+            animation: spin 1s linear infinite;
+            background: #95a5a6;
+            cursor: wait;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        #weather-container { display: flex; overflow-x: auto; gap: 10px; margin-top: 5px; padding-bottom: 5px; }
+        .weather-card { text-align: center; min-width: 55px; background: #f1f3f5; padding: 8px; border-radius: 8px; font-size: 11px; border: 1px solid #eee; }
+        #status-log { font-size: 10px; color: #aaa; text-transform: uppercase; margin-top: 5px; }
+        
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .details-btn {
+            background: #9b59b6;
+            flex: 1;
+        }
+        
+        .share-btn {
+            background: #3498db;
+            flex: 1;
+        }
+        
+        /* Custom popup styles */
+        .maplibregl-popup-content {
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            border: none;
+            max-width: 280px;
+            overflow: hidden;
+        }
+        
+        .waypoint-popup {
+            width: 100%;
+        }
+        
+        .waypoint-popup-image {
+            width: 100%;
+            height: 150px;
+            background-size: cover;
+            background-position: center;
+            background-color: #f1f3f5;
+            position: relative;
+        }
+        
+        .waypoint-popup-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .waypoint-popup-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 40px;
+        }
+        
+        .waypoint-popup-content {
+            padding: 16px;
+        }
+        
+        .waypoint-popup-name {
+            font-weight: bold;
+            font-size: 18px;
+            color: #2c3e50;
+            margin-bottom: 6px;
+            padding-right: 24px;
+        }
+        
+        .waypoint-popup-desc {
+            font-size: 14px;
+            color: #5a6a7a;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        
+        .waypoint-popup-coords {
+            font-size: 11px;
+            color: #95a5a6;
+            border-top: 1px solid #edf2f7;
+            padding-top: 10px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .waypoint-popup-coords span {
+            background: #f7f9fc;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-family: monospace;
+        }
+        
+        .waypoint-popup-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+        
+        .waypoint-popup-weather {
+            font-size: 11px;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .maplibregl-popup-close-button {
+            font-size: 18px;
+            color: white;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            line-height: 1;
+            top: 8px;
+            right: 8px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        
+        .maplibregl-popup-close-button:hover {
+            background: rgba(0,0,0,0.5);
+        }
+        
+        .maplibregl-popup-tip {
+            display: none;
+        }
+        
+        /* Image gallery navigation */
+        .popup-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.8);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .popup-nav:hover {
+            background: white;
+        }
+        
+        .popup-nav.prev {
+            left: 8px;
+        }
+        
+        .popup-nav.next {
+            right: 8px;
+        }
+        
+        /* Image counter */
+        .image-counter {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            z-index: 10;
+        }
+        
+        /* Last updated indicator */
+        .last-updated {
+            font-size: 9px;
+            color: #95a5a6;
+            margin-top: 5px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="overlay" id="main-overlay">
+    <div id="overlay-content">
+        <h3 style="margin:0 0 10px 0; color: #333;" id="trail-title">Hike Explorer</h3>
+        
+        <div class="action-row">
+            <!-- <input type="text" id="search-input" placeholder="Search map..." onkeypress="if(event.key==='Enter') searchLocation()">
+            <button class="btn go-btn" onclick="searchLocation()">GO</button> -->
+            <button class="btn gps-btn" onclick="centerOnUser()">📍</button>
+        </div>
+
+        <div id="results-list"></div>
+
+        <div class="trail-select-container">
+            <select id="trail-select" onchange="switchTrail(this.value)"></select>
+            <button class="refresh-btn" onclick="refreshTrailList()" id="refresh-trails-btn" title="Refresh trail list">↻</button>
+        </div>
+
+        <div id="weather-container"></div>
+        
+        <div class="button-row">
+            <button class="btn details-btn" onclick="viewTrailDetails()">📋 View Trail Details</button>
+            <button class="btn share-btn" onclick="shareTrail()">📤 Share Trail</button>
+        </div>
+        
+        <button id="install-btn" class="btn">📲 Install App to Phone</button>
+
+        <div id="status-log">Ready</div>
+        <div id="last-updated" class="last-updated"></div>
+    </div>
+    <button onclick="toggleOverlay()" style="background:none; border:none; color:#ddd; width:100%; padding:8px; font-size: 10px; cursor: pointer;">⬤ MENU ⬤</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+    const log = (msg) => document.getElementById('status-log').innerText = msg;
+    let userCoords = null;
+    let deferredPrompt;
+    let currentTrailData = null; // Store current trail data for popups
+    let popup = null; // Single popup instance
+    let currentImageIndex = 0;
+    let currentImages = [];
+
+    // --- PWA INSTALL LOGIC ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('install-btn').style.display = 'block';
+    });
+
+    document.getElementById('install-btn').addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                log('App Installed');
+            }
+            deferredPrompt = null;
+            document.getElementById('install-btn').style.display = 'none';
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        log('Installation Complete');
+        document.getElementById('install-btn').style.display = 'none';
+    });
+
+    // --- MAP & TRAIL LOGIC ---
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            "version": 8,
+            "sources": { "osm": { "type": "raster", "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "tileSize": 256 } },
+            "layers": [{ "id": "osm-layer", "type": "raster", "source": "osm" }]
+        },
+        center: [18.6483, -33.8340],
+        zoom: 12
+    });
+
+    // Add navigation control
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    function centerOnUser() {
+        if (userCoords) {
+            map.flyTo({ center: userCoords, zoom: 15 });
+            fetchWeather(userCoords[0], userCoords[1]);
+        } else {
+            log("Locating...");
+            // Try to get location if not already available
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    userCoords = [pos.coords.longitude, pos.coords.latitude];
+                    map.flyTo({ center: userCoords, zoom: 15 });
+                    updateUserLocationOnMap(userCoords);
+                    fetchWeather(userCoords[0], userCoords[1]);
+                }, (error) => {
+                    log("Location access denied");
+                });
+            }
+        }
+    }
+
+    function updateUserLocationOnMap(coords) {
+        if (map.getSource('me')) {
+            map.getSource('me').setData({
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "geometry": { "type": "Point", "coordinates": coords }
+                }]
+            });
+        }
+    }
+
+    async function searchLocation() {
+        const query = document.getElementById('search-input').value;
+        const listDiv = document.getElementById('results-list');
+        if (!query) return;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+            const data = await res.json();
+            if (data.length > 0) {
+                listDiv.innerHTML = '';
+                listDiv.style.display = 'block';
+                data.forEach(place => {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.innerText = place.display_name.split(',').slice(0,3).join(',');
+                    item.onclick = () => {
+                        map.flyTo({ center: [parseFloat(place.lon), parseFloat(place.lat)], zoom: 14 });
+                        listDiv.style.display = 'none';
+                        document.getElementById('search-input').value = place.display_name.split(',')[0];
+                        fetchWeather(place.lon, place.lat);
+                    };
+                    listDiv.appendChild(item);
+                });
+            }
+        } catch (e) { log("Search Error"); }
+    }
+
+    // Update last updated timestamp
+    function updateLastUpdated() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('last-updated').innerText = `Trails updated: ${timeString}`;
+    }
+
+    // Refresh trail list
+    async function refreshTrailList() {
+        const refreshBtn = document.getElementById('refresh-trails-btn');
+        const select = document.getElementById('trail-select');
+        const currentValue = select.value;
+        
+        // Add loading animation
+        refreshBtn.classList.add('loading');
+        refreshBtn.disabled = true;
+        refreshBtn.style.cursor = 'wait';
+        
+        log("Refreshing trail list...");
+        
+        try {
+            // Bypass cache by adding a timestamp parameter
+            const response = await fetch(`./trails/list.json?t=${Date.now()}`);
+            const trailList = await response.json();
+            
+            // Store current selection
+            select.innerHTML = ''; 
+            
+            trailList.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id; 
+                opt.textContent = t.name;
+                select.appendChild(opt);
+            });
+            
+            // Try to restore previous selection
+            if (currentValue && document.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+                // Optionally refresh current trail data
+                switchTrail(currentValue);
+            } else if (trailList.length > 0) {
+                // If previous selection no longer exists, load first trail
+                switchTrail(trailList[0].id);
+            }
+            
+            log("Trail list refreshed");
+            updateLastUpdated();
+            
+            // Show success message briefly
+            refreshBtn.style.background = '#2ecc71';
+            setTimeout(() => {
+                refreshBtn.style.background = '#3498db';
+            }, 500);
+            
+        } catch (e) { 
+            log("Failed to refresh trail list");
+            console.error(e);
+            
+            // Show error state
+            refreshBtn.style.background = '#e74c3c';
+            setTimeout(() => {
+                refreshBtn.style.background = '#3498db';
+            }, 1000);
+        } finally {
+            // Remove loading animation
+            refreshBtn.classList.remove('loading');
+            refreshBtn.disabled = false;
+            refreshBtn.style.cursor = 'pointer';
+        }
+    }
+
+    async function initTrailSystem() {
+        try {
+            const response = await fetch('./trails/list.json');
+            const trailList = await response.json();
+            const select = document.getElementById('trail-select');
+            select.innerHTML = ''; 
+            trailList.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id; 
+                opt.textContent = t.name;
+                select.appendChild(opt);
+            });
+            if(trailList.length > 0) {
+                // Check if there's a trail in URL, otherwise load first
+                const urlParams = new URLSearchParams(window.location.search);
+                const trailId = urlParams.get('trail');
+                if (trailId && document.querySelector(`option[value="${trailId}"]`)) {
+                    select.value = trailId;
+                    switchTrail(trailId);
+                } else {
+                    switchTrail(trailList[0].id);
+                }
+            }
+            updateLastUpdated();
+        } catch (e) { 
+            log("List Error");
+            console.error(e);
+        }
+    }
+
+    // Function to navigate images in popup
+    function navigateImage(direction) {
+        if (currentImages.length === 0) return;
+        
+        currentImageIndex = (currentImageIndex + direction + currentImages.length) % currentImages.length;
+        updatePopupImage();
+    }
+
+    // Update popup with current image
+    function updatePopupImage() {
+        const imageContainer = document.getElementById('popup-image-container');
+        const counter = document.getElementById('image-counter');
+        
+        if (imageContainer && currentImages.length > 0) {
+            const imageUrl = currentImages[currentImageIndex];
+            imageContainer.innerHTML = `<img src="${imageUrl}" alt="Waypoint view" onerror="this.parentElement.innerHTML='<div class=\'waypoint-popup-image-placeholder\'>📸</div>'">`;
+            
+            if (counter) {
+                if (currentImages.length > 1) {
+                    counter.style.display = 'block';
+                    counter.textContent = `${currentImageIndex + 1}/${currentImages.length}`;
+                } else {
+                    counter.style.display = 'none';
+                }
+            }
+        }
+    }
+
+    // Function to show waypoint popup with photo support
+    function showWaypointPopup(feature, lngLat) {
+        // Remove existing popup
+        if (popup) popup.remove();
+        
+        const coordinates = feature.geometry.coordinates;
+        const props = feature.properties || {};
+        
+        // Collect images (main image + any additional ones)
+        currentImages = [];
+        if (props.image) {
+            currentImages.push(props.image);
+        }
+        // You could add support for multiple images here if needed
+        // if (props.images && Array.isArray(props.images)) {
+        //     currentImages = [...currentImages, ...props.images];
+        // }
+        
+        currentImageIndex = 0;
+        
+        // Create popup content
+        const content = document.createElement('div');
+        content.className = 'waypoint-popup';
+        
+        // Image section
+        const imageHtml = currentImages.length > 0 
+            ? `<div class="waypoint-popup-image" id="popup-image-container">
+                <img src="${currentImages[0]}" alt="${props.name}" onerror="this.parentElement.innerHTML='<div class=\'waypoint-popup-image-placeholder\'>📸</div>'">
+                ${currentImages.length > 1 ? `
+                    <button class="popup-nav prev" onclick="navigateImage(-1)">←</button>
+                    <button class="popup-nav next" onclick="navigateImage(1)">→</button>
+                    <div class="image-counter" id="image-counter">1/${currentImages.length}</div>
+                ` : ''}
+               </div>`
+            : `<div class="waypoint-popup-image">
+                <div class="waypoint-popup-image-placeholder">📍</div>
+               </div>`;
+        
+        content.innerHTML = `
+            ${imageHtml}
+            <div class="waypoint-popup-content">
+                <div class="waypoint-popup-name">${props.name || 'Waypoint'}</div>
+                <div class="waypoint-popup-desc">${props.desc || 'No description available'}</div>
+                <div class="waypoint-popup-coords">
+                    <span>${coordinates[1].toFixed(5)}°</span>
+                    <span>${coordinates[0].toFixed(5)}°</span>
+                </div>
+                <div class="waypoint-popup-footer">
+                    <div class="waypoint-popup-weather">
+                        ${props.weather || '📍 Trail feature'}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Create and show popup
+        popup = new maplibregl.Popup({
+            closeButton: true,
+            closeOnClick: false,
+            offset: 25,
+            className: 'waypoint-popup-wrapper'
+        })
+            .setLngLat(lngLat || coordinates)
+            .setDOMContent(content)
+            .addTo(map);
+        
+        // Store image navigation functions globally for button access
+        window.navigateImage = navigateImage;
+    }
+
+    async function switchTrail(id) {
+        try {
+            const res = await fetch(`./trails/${id}.json?t=${Date.now()}`); // Add timestamp to bypass cache
+            const data = await res.json();
+            currentTrailData = data; // Store for popups
+            document.getElementById('trail-title').innerText = data.name;
+            map.flyTo({ center: data.center, zoom: 14 });
+            
+            // Update or create source and layer
+            if (!map.getSource('hike-pts')) {
+                map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
+                map.addLayer({ 
+                    id: 'hike-layer', 
+                    type: 'circle', 
+                    source: 'hike-pts', 
+                    paint: { 
+                        'circle-radius': 12, 
+                        'circle-color': '#FF5252', 
+                        'circle-stroke-width': 3, 
+                        'circle-stroke-color': '#fff' 
+                    }
+                });
+                
+                // Add click handler for waypoints
+                map.on('click', 'hike-layer', (e) => {
+                    if (e.features && e.features.length > 0) {
+                        const feature = e.features[0];
+                        showWaypointPopup(feature, e.lngLat);
+                    }
+                });
+                
+                // Change cursor on hover
+                map.on('mouseenter', 'hike-layer', () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+                
+                map.on('mouseleave', 'hike-layer', () => {
+                    map.getCanvas().style.cursor = '';
+                });
+            } else { 
+                map.getSource('hike-pts').setData(data.waypoints); 
+            }
+            
+            fetchWeather(data.center[0], data.center[1]);
+            
+            // Update URL without reloading
+            const url = new URL(window.location);
+            url.searchParams.set('trail', id);
+            window.history.pushState({}, '', url);
+        } catch(e) { 
+            log("JSON Error");
+            console.error(e);
+        }
+    }
+
+    // View trail details
+    function viewTrailDetails() {
+        const select = document.getElementById('trail-select');
+        const selectedTrail = select.value;
+        if (selectedTrail) {
+            window.location.href = `trail-details.html?id=${selectedTrail}`;
+        } else {
+            alert('Please select a trail first');
+        }
+    }
+
+    // Share trail
+    function shareTrail() {
+        const select = document.getElementById('trail-select');
+        const selectedTrail = select.value;
+        const selectedName = select.options[select.selectedIndex]?.text;
+        
+        if (!selectedTrail) {
+            alert('Please select a trail first');
+            return;
+        }
+
+        const shareData = {
+            title: 'Hike Explorer',
+            text: `Check out ${selectedName} on Hike Explorer!`,
+            url: `${window.location.origin}${window.location.pathname}?trail=${selectedTrail}`
+        };
+
+        if (navigator.share) {
+            navigator.share(shareData).catch(() => {});
+        } else {
+            // Fallback - copy to clipboard
+            navigator.clipboard.writeText(shareData.url).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this link:', shareData.url);
+            });
+        }
+    }
+
+    async function fetchWeather(lon, lat) {
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
+            const data = await res.json();
+            const container = document.getElementById('weather-container');
+            container.innerHTML = '';
+            for(let i=0; i<5; i++) {
+                const date = new Date(data.daily.time[i]).toLocaleDateString('en', {weekday:'short'});
+                const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
+                const minTemp = Math.round(data.daily.temperature_2m_min[i]);
+                container.innerHTML += `<div class="weather-card"><b>${date}</b><br>${maxTemp}°<br><span style="color:#666;">${minTemp}°</span></div>`;
+            }
+        } catch(e) { 
+            log("Weather Off");
+            document.getElementById('weather-container').innerHTML = '<div class="weather-card">Weather unavailable</div>';
+        }
+    }
+
+    map.on('load', () => {
+        initTrailSystem();
+        
+        // Add user location source
+        map.addSource('me', { 
+            type: 'geojson', 
+            data: { 
+                "type": "FeatureCollection", 
+                "features": [] 
+            } 
+        });
+        
+        map.addLayer({ 
+            id: 'me-layer', 
+            type: 'circle', 
+            source: 'me', 
+            paint: { 
+                'circle-radius': 10, 
+                'circle-color': '#007cff', 
+                'circle-stroke-width': 3, 
+                'circle-stroke-color': '#fff' 
+            } 
+        });
+
+        // Start watching user location
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition((pos) => {
+                userCoords = [pos.coords.longitude, pos.coords.latitude];
+                updateUserLocationOnMap(userCoords);
+                log("GPS Active");
+            }, (error) => {
+                log("GPS unavailable");
+                console.warn("Geolocation error:", error);
+            }, { 
+                enableHighAccuracy: true,
+                maximumAge: 30000,
+                timeout: 27000
+            });
+        } else {
+            log("Geolocation not supported");
+        }
+    });
+
+    function toggleOverlay() { 
+        document.getElementById('main-overlay').classList.toggle('collapsed'); 
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js').then(reg => {
+            console.log('Service Worker registered');
+        }).catch(err => {
+            console.error('Service Worker registration failed:', err);
+        });
+    }
+
+    // Handle popup close on map click
+    map.on('click', (e) => {
+        // Only close popup if not clicking on a waypoint
+        const features = map.queryRenderedFeatures(e.point, { layers: ['hike-layer'] });
+        if (features.length === 0 && popup) {
+            popup.remove();
+            popup = null;
+        }
+    });
+
+    // Auto-refresh trail list every 5 minutes
+    setInterval(() => {
+        refreshTrailList();
+    }, 300000); // 5 minutes
+
+    // Expose functions globally
+    window.centerOnUser = centerOnUser;
+    window.searchLocation = searchLocation;
+    window.switchTrail = switchTrail;
+    window.toggleOverlay = toggleOverlay;
+    window.viewTrailDetails = viewTrailDetails;
+    window.shareTrail = shareTrail;
+    window.navigateImage = navigateImage;
+    window.refreshTrailList = refreshTrailList;
+</script>
+</body>
+</html>

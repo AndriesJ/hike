@@ -1,0 +1,112 @@
+{
+  "name": "Andries Test Hike home",
+  "id": "andriestest",
+  "difficulty": "easy",
+  "duration": "1.5-2 hours",
+  "distance": "5 km round trip",
+  "elevation": "350 m",
+  "description": "This is a sample hike to test tracking and waypoint completion  .",
+  "coordinates": [
+    18.3892,
+    -33.9349
+  ],
+  "center": [
+    18.685333702874704,
+    -33.81742816309252
+  ],
+  "waypoints": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.685333702874704,
+            -33.81742816309252
+          ]
+        },
+        "properties": {
+          "name": "Start",
+          "desc": "Start the hike here.",
+          "image": "https://lh3.googleusercontent.com/gps-cs-s/AHVAwerY64Motox35CNW1JWK45IAEHdQzPxrGemdCMIJx4BzlycvroPbGGuyDNpiVaHM9iCgnD2nghRsp6a-DXDPPS7v93IyauoTxSBLQAeM3JBvD_CA8q-pS_ZEr_AIOVrYHkvbJCFD=w408-h306-k-no"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.68724172662227,
+            -33.81692850951187 
+          ]
+        },
+        "properties": {
+          "name": "Turn Right to go back",
+          "desc": "You need to turn right here to go back or go straight to go longer",
+          "image": "https://example.com/paragliders.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.688500734555536,
+            -33.819637645250424
+          ]
+        },
+        "properties": {
+          "name": "Another right Turn",
+          "desc": "This is another right turn with a slight hill",
+          "image": "https://example.com/staples.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.68542975215316,
+            -33.81982685239484
+          ]
+        },
+        "properties": {
+          "name": "Almost there",
+          "desc": "Second to last right turn, almost there",
+          "image": "https://example.com/cave-view.jpg"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            18.684511427884832,
+            -33.81870375154911
+          ]
+        },
+        "properties": {
+          "name": "Downhill from here",
+          "desc": "This is all downhill from here, last turn and home",
+          "image": "https://example.com/summit.jpg"
+        }
+      }
+    ]
+  },
+  "weather": {
+    "best_season": "Year-round (avoid strong winds)",
+    "sunrise_tip": "Start 1 hour before sunrise for spectacular views"
+  },
+  "facilities": [
+    "Parking at base",
+    "No water on trail",
+    "No restrooms"
+  ],
+  "safety_tips": [
+    "Wear good hiking shoes",
+    "Bring at least 1L water",
+    "Check weather before starting",
+    "Avoid during lightning"
+  ]
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELM Hike Explorer PWA</title>
+    <title>Hike Explorer PWA</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3bb2d0">
@@ -17,6 +17,7 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; }
         #map { width: 100vw; height: 100vh; background: #eee; }
         
+        /* Top overlay */
         .overlay {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
             background: white; padding: 15px; border-radius: 0 0 20px 20px;
@@ -118,7 +119,270 @@
             flex: 1;
         }
         
-        /* Custom popup styles */
+        /* Hike tracking button */
+        .hike-controls {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .start-hike-btn {
+            background: #e74c3c;
+            flex: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        
+        .start-hike-btn.active {
+            background: #27ae60;
+        }
+        
+        .reset-hike-btn {
+            background: #7f8c8d;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        /* Right panel for waypoint tracking */
+        .tracking-panel {
+            position: absolute;
+            top: 80px;
+            right: 10px;
+            bottom: 80px;
+            width: 260px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
+        }
+        
+        .tracking-panel.collapsed-right {
+            transform: translateX(calc(100% - 40px));
+        }
+        
+        .tracking-header {
+            padding: 15px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        
+        .tracking-header h3 {
+            margin: 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tracking-header .toggle-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .tracking-stats {
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        
+        .waypoints-progress {
+            padding: 15px;
+            background: white;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #27ae60;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-align: right;
+        }
+        
+        .waypoint-track-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+        
+        .track-waypoint-item {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .track-waypoint-item.completed {
+            background: #f0fff4;
+            border-color: #27ae60;
+            opacity: 0.8;
+        }
+        
+        .track-waypoint-item .status-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        
+        .track-waypoint-item.pending .status-icon {
+            background: #ecf0f1;
+            color: #7f8c8d;
+            border: 2px solid #bdc3c7;
+        }
+        
+        .track-waypoint-item.completed .status-icon {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .track-waypoint-item .waypoint-info {
+            flex: 1;
+        }
+        
+        .track-waypoint-item .waypoint-name {
+            font-weight: bold;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .track-waypoint-item .waypoint-distance {
+            font-size: 11px;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        
+        .track-waypoint-item.completed .waypoint-name {
+            color: #27ae60;
+            text-decoration: line-through;
+            text-decoration-color: #27ae60;
+        }
+        
+        .current-waypoint-indicator {
+            background: #f1c40f;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+        
+        .tracking-footer {
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+            font-size: 11px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+        
+        .path-recording-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 15;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            backdrop-filter: blur(5px);
+        }
+        
+        .path-recording-indicator.active {
+            display: flex;
+        }
+        
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Custom popup styles (keep existing) */
         .maplibregl-popup-content {
             border-radius: 16px;
             padding: 0;
@@ -284,7 +548,6 @@
             z-index: 10;
         }
         
-        /* Last updated indicator */
         .last-updated {
             font-size: 9px;
             color: #95a5a6;
@@ -314,6 +577,14 @@
 
         <div id="weather-container"></div>
         
+        <!-- Hike tracking controls -->
+        <div class="hike-controls">
+            <button class="btn start-hike-btn" id="start-hike-btn" onclick="toggleHikeTracking()">
+                <span>▶</span> Start Hike
+            </button>
+            <button class="btn reset-hike-btn" id="reset-hike-btn" onclick="resetHikeTracking()" title="Reset hike">↺</button>
+        </div>
+        
         <div class="button-row">
             <button class="btn details-btn" onclick="viewTrailDetails()">📋 View Trail Details</button>
             <button class="btn share-btn" onclick="shareTrail()">📤 Share Trail</button>
@@ -327,16 +598,72 @@
     <button onclick="toggleOverlay()" style="background:none; border:none; color:#ddd; width:100%; padding:8px; font-size: 10px; cursor: pointer;">⬤ MENU ⬤</button>
 </div>
 
+<!-- Right panel for waypoint tracking -->
+<div class="tracking-panel" id="tracking-panel">
+    <div class="tracking-header" onclick="toggleTrackingPanel()">
+        <h3>
+            <span>🎯</span> Hike Progress
+        </h3>
+        <button class="toggle-btn" id="toggle-panel-btn">◀</button>
+    </div>
+    
+    <div class="tracking-stats">
+        <div class="stat-item">
+            <div class="stat-value" id="completed-count">0</div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="total-waypoints">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="distance-hiked">0.0</div>
+            <div class="stat-label">km</div>
+        </div>
+    </div>
+    
+    <div class="waypoints-progress">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="progress-text" id="progress-text">0% Complete</div>
+    </div>
+    
+    <div class="waypoint-track-list" id="waypoint-track-list">
+        <!-- Will be populated dynamically -->
+    </div>
+    
+    <div class="tracking-footer">
+        <span id="tracking-status">Not tracking</span>
+    </div>
+</div>
+
+<!-- Recording indicator -->
+<div class="path-recording-indicator" id="recording-indicator">
+    <span class="recording-dot"></span>
+    <span>Recording hike...</span>
+</div>
+
 <div id="map"></div>
 
 <script>
     const log = (msg) => document.getElementById('status-log').innerText = msg;
     let userCoords = null;
     let deferredPrompt;
-    let currentTrailData = null; // Store current trail data for popups
-    let popup = null; // Single popup instance
+    let currentTrailData = null;
+    let popup = null;
     let currentImageIndex = 0;
     let currentImages = [];
+    
+    // Hike tracking variables
+    let isHiking = false;
+    let completedWaypoints = [];
+    let hikePath = [];
+    let hikePathLine = null;
+    let startTime = null;
+    let totalDistance = 0;
+    let lastPosition = null;
+    let waypointProximityThreshold = 50; // meters
 
     // --- PWA INSTALL LOGIC ---
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -362,7 +689,7 @@
         document.getElementById('install-btn').style.display = 'none';
     });
 
-    // --- MAP & TRAIL LOGIC ---
+    // --- MAP SETUP ---
     const map = new maplibregl.Map({
         container: 'map',
         style: {
@@ -377,13 +704,266 @@
     // Add navigation control
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+    // --- TRACKING PANEL FUNCTIONS ---
+    function toggleTrackingPanel() {
+        const panel = document.getElementById('tracking-panel');
+        const toggleBtn = document.getElementById('toggle-panel-btn');
+        panel.classList.toggle('collapsed-right');
+        toggleBtn.textContent = panel.classList.contains('collapsed-right') ? '▶' : '◀';
+    }
+
+    // Calculate distance between two points in meters (Haversine formula)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // in meters
+    }
+
+    // Check if user is near a waypoint
+    function checkWaypointProximity() {
+        if (!isHiking || !userCoords || !currentTrailData || !currentTrailData.waypoints) return;
+
+        const waypoints = currentTrailData.waypoints.features;
+        
+        waypoints.forEach((waypoint, index) => {
+            // Skip if already completed
+            if (completedWaypoints.includes(index)) return;
+            
+            const wpCoords = waypoint.geometry.coordinates;
+            const distance = calculateDistance(
+                userCoords[1], userCoords[0],
+                wpCoords[1], wpCoords[0]
+            );
+            
+            // If within threshold, mark as completed
+            if (distance <= waypointProximityThreshold) {
+                completedWaypoints.push(index);
+                updateWaypointDisplay();
+                
+                // Show notification
+                const wpName = waypoint.properties.name || 'Waypoint';
+                log(`✓ Reached: ${wpName}`);
+                
+                // Optional: play sound or vibrate
+                if (navigator.vibrate) navigator.vibrate(200);
+            }
+        });
+    }
+
+    // Update waypoint display in tracking panel
+    function updateWaypointDisplay() {
+        if (!currentTrailData || !currentTrailData.waypoints) return;
+        
+        const waypoints = currentTrailData.waypoints.features;
+        const listContainer = document.getElementById('waypoint-track-list');
+        const completedCount = document.getElementById('completed-count');
+        const totalWaypoints = document.getElementById('total-waypoints');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        
+        // Update counts
+        completedCount.textContent = completedWaypoints.length;
+        totalWaypoints.textContent = waypoints.length;
+        
+        const percentComplete = (completedWaypoints.length / waypoints.length) * 100;
+        progressFill.style.width = `${percentComplete}%`;
+        progressText.textContent = `${Math.round(percentComplete)}% Complete`;
+        
+        // Generate list
+        listContainer.innerHTML = waypoints.map((wp, index) => {
+            const isCompleted = completedWaypoints.includes(index);
+            const wpCoords = wp.geometry.coordinates;
+            
+            // Calculate distance to waypoint if user location available
+            let distanceText = '';
+            if (userCoords && !isCompleted) {
+                const distance = calculateDistance(
+                    userCoords[1], userCoords[0],
+                    wpCoords[1], wpCoords[0]
+                );
+                if (distance < 1000) {
+                    distanceText = `${Math.round(distance)}m away`;
+                } else {
+                    distanceText = `${(distance/1000).toFixed(1)}km away`;
+                }
+            }
+            
+            return `
+                <div class="track-waypoint-item ${isCompleted ? 'completed' : 'pending'}">
+                    <div class="status-icon">${isCompleted ? '✓' : index+1}</div>
+                    <div class="waypoint-info">
+                        <div class="waypoint-name">
+                            ${wp.properties.name || 'Waypoint'}
+                            ${!isCompleted && distanceText ? `<span class="current-waypoint-indicator">near</span>` : ''}
+                        </div>
+                        ${distanceText ? `<div class="waypoint-distance">📍 ${distanceText}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Update button state if all completed
+        if (completedWaypoints.length === waypoints.length && waypoints.length > 0) {
+            log('🎉 Congratulations! You completed the hike!');
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        }
+    }
+
+    // Initialize hike path line on map
+    function initHikePathLine() {
+        if (map.getSource('hike-path')) {
+            map.getSource('hike-path').setData({
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: hikePath
+                }
+            });
+        } else {
+            map.addSource('hike-path', {
+                type: 'geojson',
+                data: {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: hikePath
+                    }
+                }
+            });
+            
+            map.addLayer({
+                id: 'hike-path-layer',
+                type: 'line',
+                source: 'hike-path',
+                paint: {
+                    'line-color': '#e74c3c',
+                    'line-width': 4,
+                    'line-opacity': 0.8,
+                    'line-dasharray': [1, 0]
+                }
+            });
+        }
+    }
+
+    // Update hike path with new position
+    function updateHikePath() {
+        if (!isHiking || !userCoords) return;
+        
+        // Add to path
+        hikePath.push(userCoords);
+        
+        // Update distance
+        if (lastPosition) {
+            const segmentDistance = calculateDistance(
+                lastPosition[1], lastPosition[0],
+                userCoords[1], userCoords[0]
+            );
+            totalDistance += segmentDistance;
+            document.getElementById('distance-hiked').textContent = (totalDistance / 1000).toFixed(1);
+        }
+        
+        lastPosition = userCoords;
+        
+        // Update map line
+        if (map.getSource('hike-path')) {
+            map.getSource('hike-path').setData({
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: hikePath
+                }
+            });
+        }
+        
+        // Check proximity to waypoints
+        checkWaypointProximity();
+    }
+
+    // Toggle hike tracking
+    function toggleHikeTracking() {
+        const startBtn = document.getElementById('start-hike-btn');
+        const recordingIndicator = document.getElementById('recording-indicator');
+        
+        isHiking = !isHiking;
+        
+        if (isHiking) {
+            // Start hike
+            startBtn.innerHTML = '<span>⏸️</span> Pause Hike';
+            startBtn.classList.add('active');
+            recordingIndicator.classList.add('active');
+            
+            // Initialize tracking
+            if (hikePath.length === 0) {
+                startTime = new Date();
+                if (userCoords) {
+                    hikePath = [userCoords];
+                    initHikePathLine();
+                }
+            }
+            
+            document.getElementById('tracking-status').textContent = 'Recording...';
+            log('Hike started!');
+        } else {
+            // Pause hike
+            startBtn.innerHTML = '<span>▶</span> Resume Hike';
+            startBtn.classList.remove('active');
+            recordingIndicator.classList.remove('active');
+            document.getElementById('tracking-status').textContent = 'Paused';
+            log('Hike paused');
+        }
+    }
+
+    // Reset hike tracking
+    function resetHikeTracking() {
+        if (!confirm('Reset hike progress? All recorded data will be lost.')) return;
+        
+        isHiking = false;
+        completedWaypoints = [];
+        hikePath = [];
+        totalDistance = 0;
+        lastPosition = null;
+        startTime = null;
+        
+        // Reset UI
+        const startBtn = document.getElementById('start-hike-btn');
+        startBtn.innerHTML = '<span>▶</span> Start Hike';
+        startBtn.classList.remove('active');
+        document.getElementById('recording-indicator').classList.remove('active');
+        document.getElementById('distance-hiked').textContent = '0.0';
+        document.getElementById('tracking-status').textContent = 'Not tracking';
+        
+        // Clear path from map
+        if (map.getSource('hike-path')) {
+            map.getSource('hike-path').setData({
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: []
+                }
+            });
+        }
+        
+        updateWaypointDisplay();
+        log('Hike reset');
+    }
+
+    // --- EXISTING FUNCTIONS (modified to support tracking) ---
+
     function centerOnUser() {
         if (userCoords) {
             map.flyTo({ center: userCoords, zoom: 15 });
             fetchWeather(userCoords[0], userCoords[1]);
         } else {
             log("Locating...");
-            // Try to get location if not already available
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition((pos) => {
                     userCoords = [pos.coords.longitude, pos.coords.latitude];
@@ -407,35 +987,11 @@
                 }]
             });
         }
+        
+        // Update hike path if hiking
+        updateHikePath();
     }
 
-    async function searchLocation() {
-        const query = document.getElementById('search-input').value;
-        const listDiv = document.getElementById('results-list');
-        if (!query) return;
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-            const data = await res.json();
-            if (data.length > 0) {
-                listDiv.innerHTML = '';
-                listDiv.style.display = 'block';
-                data.forEach(place => {
-                    const item = document.createElement('div');
-                    item.className = 'result-item';
-                    item.innerText = place.display_name.split(',').slice(0,3).join(',');
-                    item.onclick = () => {
-                        map.flyTo({ center: [parseFloat(place.lon), parseFloat(place.lat)], zoom: 14 });
-                        listDiv.style.display = 'none';
-                        document.getElementById('search-input').value = place.display_name.split(',')[0];
-                        fetchWeather(place.lon, place.lat);
-                    };
-                    listDiv.appendChild(item);
-                });
-            }
-        } catch (e) { log("Search Error"); }
-    }
-
-    // Update last updated timestamp
     function updateLastUpdated() {
         const now = new Date();
         const timeString = now.toLocaleTimeString('en-US', { 
@@ -446,27 +1002,21 @@
         document.getElementById('last-updated').innerText = `Trails updated: ${timeString}`;
     }
 
-    // Refresh trail list
     async function refreshTrailList() {
         const refreshBtn = document.getElementById('refresh-trails-btn');
         const select = document.getElementById('trail-select');
         const currentValue = select.value;
         
-        // Add loading animation
         refreshBtn.classList.add('loading');
         refreshBtn.disabled = true;
-        refreshBtn.style.cursor = 'wait';
         
         log("Refreshing trail list...");
         
         try {
-            // Bypass cache by adding a timestamp parameter
             const response = await fetch(`./trails/list.json?t=${Date.now()}`);
             const trailList = await response.json();
             
-            // Store current selection
             select.innerHTML = ''; 
-            
             trailList.forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t.id; 
@@ -474,20 +1024,16 @@
                 select.appendChild(opt);
             });
             
-            // Try to restore previous selection
             if (currentValue && document.querySelector(`option[value="${currentValue}"]`)) {
                 select.value = currentValue;
-                // Optionally refresh current trail data
                 switchTrail(currentValue);
             } else if (trailList.length > 0) {
-                // If previous selection no longer exists, load first trail
                 switchTrail(trailList[0].id);
             }
             
             log("Trail list refreshed");
             updateLastUpdated();
             
-            // Show success message briefly
             refreshBtn.style.background = '#2ecc71';
             setTimeout(() => {
                 refreshBtn.style.background = '#3498db';
@@ -495,18 +1041,13 @@
             
         } catch (e) { 
             log("Failed to refresh trail list");
-            console.error(e);
-            
-            // Show error state
             refreshBtn.style.background = '#e74c3c';
             setTimeout(() => {
                 refreshBtn.style.background = '#3498db';
             }, 1000);
         } finally {
-            // Remove loading animation
             refreshBtn.classList.remove('loading');
             refreshBtn.disabled = false;
-            refreshBtn.style.cursor = 'pointer';
         }
     }
 
@@ -523,7 +1064,6 @@
                 select.appendChild(opt);
             });
             if(trailList.length > 0) {
-                // Check if there's a trail in URL, otherwise load first
                 const urlParams = new URLSearchParams(window.location.search);
                 const trailId = urlParams.get('trail');
                 if (trailId && document.querySelector(`option[value="${trailId}"]`)) {
@@ -540,15 +1080,12 @@
         }
     }
 
-    // Function to navigate images in popup
     function navigateImage(direction) {
         if (currentImages.length === 0) return;
-        
         currentImageIndex = (currentImageIndex + direction + currentImages.length) % currentImages.length;
         updatePopupImage();
     }
 
-    // Update popup with current image
     function updatePopupImage() {
         const imageContainer = document.getElementById('popup-image-container');
         const counter = document.getElementById('image-counter');
@@ -568,31 +1105,22 @@
         }
     }
 
-    // Function to show waypoint popup with photo support
     function showWaypointPopup(feature, lngLat) {
-        // Remove existing popup
         if (popup) popup.remove();
         
         const coordinates = feature.geometry.coordinates;
         const props = feature.properties || {};
         
-        // Collect images (main image + any additional ones)
         currentImages = [];
         if (props.image) {
             currentImages.push(props.image);
         }
-        // You could add support for multiple images here if needed
-        // if (props.images && Array.isArray(props.images)) {
-        //     currentImages = [...currentImages, ...props.images];
-        // }
         
         currentImageIndex = 0;
         
-        // Create popup content
         const content = document.createElement('div');
         content.className = 'waypoint-popup';
         
-        // Image section
         const imageHtml = currentImages.length > 0 
             ? `<div class="waypoint-popup-image" id="popup-image-container">
                 <img src="${currentImages[0]}" alt="${props.name}" onerror="this.parentElement.innerHTML='<div class=\'waypoint-popup-image-placeholder\'>📸</div>'">
@@ -623,7 +1151,6 @@
             </div>
         `;
         
-        // Create and show popup
         popup = new maplibregl.Popup({
             closeButton: true,
             closeOnClick: false,
@@ -634,19 +1161,22 @@
             .setDOMContent(content)
             .addTo(map);
         
-        // Store image navigation functions globally for button access
         window.navigateImage = navigateImage;
     }
 
     async function switchTrail(id) {
         try {
-            const res = await fetch(`./trails/${id}.json?t=${Date.now()}`); // Add timestamp to bypass cache
+            const res = await fetch(`./trails/${id}.json?t=${Date.now()}`);
             const data = await res.json();
-            currentTrailData = data; // Store for popups
+            currentTrailData = data;
             document.getElementById('trail-title').innerText = data.name;
             map.flyTo({ center: data.center, zoom: 14 });
             
-            // Update or create source and layer
+            // Reset hike tracking when switching trails
+            if (isHiking) {
+                resetHikeTracking();
+            }
+            
             if (!map.getSource('hike-pts')) {
                 map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
                 map.addLayer({ 
@@ -661,7 +1191,6 @@
                     }
                 });
                 
-                // Add click handler for waypoints
                 map.on('click', 'hike-layer', (e) => {
                     if (e.features && e.features.length > 0) {
                         const feature = e.features[0];
@@ -669,7 +1198,6 @@
                     }
                 });
                 
-                // Change cursor on hover
                 map.on('mouseenter', 'hike-layer', () => {
                     map.getCanvas().style.cursor = 'pointer';
                 });
@@ -683,17 +1211,19 @@
             
             fetchWeather(data.center[0], data.center[1]);
             
-            // Update URL without reloading
             const url = new URL(window.location);
             url.searchParams.set('trail', id);
             window.history.pushState({}, '', url);
+            
+            // Update waypoint list in tracking panel
+            updateWaypointDisplay();
+            
         } catch(e) { 
             log("JSON Error");
             console.error(e);
         }
     }
 
-    // View trail details
     function viewTrailDetails() {
         const select = document.getElementById('trail-select');
         const selectedTrail = select.value;
@@ -704,7 +1234,6 @@
         }
     }
 
-    // Share trail
     function shareTrail() {
         const select = document.getElementById('trail-select');
         const selectedTrail = select.value;
@@ -724,7 +1253,6 @@
         if (navigator.share) {
             navigator.share(shareData).catch(() => {});
         } else {
-            // Fallback - copy to clipboard
             navigator.clipboard.writeText(shareData.url).then(() => {
                 alert('Link copied to clipboard!');
             }).catch(() => {
@@ -754,7 +1282,6 @@
     map.on('load', () => {
         initTrailSystem();
         
-        // Add user location source
         map.addSource('me', { 
             type: 'geojson', 
             data: { 
@@ -775,7 +1302,6 @@
             } 
         });
 
-        // Start watching user location
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition((pos) => {
                 userCoords = [pos.coords.longitude, pos.coords.latitude];
@@ -798,7 +1324,6 @@
         document.getElementById('main-overlay').classList.toggle('collapsed'); 
     }
 
-    // Register Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./service-worker.js').then(reg => {
             console.log('Service Worker registered');
@@ -807,9 +1332,7 @@
         });
     }
 
-    // Handle popup close on map click
     map.on('click', (e) => {
-        // Only close popup if not clicking on a waypoint
         const features = map.queryRenderedFeatures(e.point, { layers: ['hike-layer'] });
         if (features.length === 0 && popup) {
             popup.remove();
@@ -820,7 +1343,7 @@
     // Auto-refresh trail list every 5 minutes
     setInterval(() => {
         refreshTrailList();
-    }, 300000); // 5 minutes
+    }, 300000);
 
     // Expose functions globally
     window.centerOnUser = centerOnUser;
@@ -831,6 +1354,9 @@
     window.shareTrail = shareTrail;
     window.navigateImage = navigateImage;
     window.refreshTrailList = refreshTrailList;
+    window.toggleHikeTracking = toggleHikeTracking;
+    window.resetHikeTracking = resetHikeTracking;
+    window.toggleTrackingPanel = toggleTrackingPanel;
 </script>
 </body>
 </html>
