@@ -1169,7 +1169,7 @@
     }
 
     // Update waypoint display in tracking panel
-    function updateWaypointDisplay() {
+   /* function updateWaypointDisplay() {
         if (!currentTrailData || !currentTrailData.waypoints) return;
         
         const waypoints = currentTrailData.waypoints.features;
@@ -1244,7 +1244,101 @@
             document.getElementById('save-hike-btn').disabled = false;
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         }
+    }*/
+	
+	function updateWaypointDisplay() {
+    if (!currentTrailData || !currentTrailData.waypoints) {
+        // No trail loaded, show empty state
+        document.getElementById('waypoint-track-list').innerHTML = 
+            '<div style="text-align: center; padding: 20px; color: #7f8c8d;">Select a trail to start hiking</div>';
+        document.getElementById('completed-count').textContent = '0';
+        document.getElementById('skipped-count').textContent = '0';
+        document.getElementById('total-waypoints').textContent = '0';
+        document.getElementById('progress-fill').style.width = '0%';
+        document.getElementById('progress-text').textContent = '0% Complete';
+        return;
     }
+    
+    const waypoints = currentTrailData.waypoints.features;
+    const listContainer = document.getElementById('waypoint-track-list');
+    const completedCount = document.getElementById('completed-count');
+    const skippedCount = document.getElementById('skipped-count');
+    const totalWaypoints = document.getElementById('total-waypoints');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    
+    // Update counts
+    completedCount.textContent = completedWaypoints.length;
+    skippedCount.textContent = skippedWaypoints.length;
+    totalWaypoints.textContent = waypoints.length;
+    
+    const totalDone = completedWaypoints.length + skippedWaypoints.length;
+    const percentComplete = waypoints.length > 0 ? (totalDone / waypoints.length) * 100 : 0;
+    progressFill.style.width = `${percentComplete}%`;
+    progressText.textContent = `${Math.round(percentComplete)}% Complete (${completedWaypoints.length} completed, ${skippedWaypoints.length} skipped)`;
+    
+    // Generate list with action buttons
+    listContainer.innerHTML = waypoints.map((wp, index) => {
+        const isCompleted = completedWaypoints.includes(index);
+        const isSkipped = skippedWaypoints.includes(index);
+        const status = isCompleted ? 'completed' : isSkipped ? 'skipped' : 'pending';
+        
+        // Calculate distance to waypoint if user location available
+        let distanceText = '';
+        let isNear = false;
+        if (userCoords && status === 'pending') {
+            const wpCoords = wp.geometry.coordinates;
+            const distance = calculateDistance(
+                userCoords[1], userCoords[0],
+                wpCoords[1], wpCoords[0]
+            );
+            if (distance < 1000) {
+                distanceText = `${Math.round(distance)}m away`;
+            } else {
+                distanceText = `${(distance/1000).toFixed(1)}km away`;
+            }
+            isNear = distance < 100;
+        }
+        
+        return `
+            <div class="track-waypoint-item ${status}">
+                <div class="status-icon">
+                    ${isCompleted ? '✓' : isSkipped ? '⏭️' : index+1}
+                </div>
+                <div class="waypoint-info">
+                    <div class="waypoint-name">
+                        ${wp.properties.name || 'Waypoint'}
+                        ${status === 'pending' && isNear ? 
+                            '<span class="current-waypoint-indicator">near</span>' : ''}
+                    </div>
+                    ${distanceText && status === 'pending' ? 
+                        `<div class="waypoint-distance">📍 ${distanceText}</div>` : ''}
+                    
+                    <div class="waypoint-actions">
+                        ${status === 'pending' ? `
+                            <button class="waypoint-action-btn complete-btn" onclick="completeWaypoint(${index})">✓ Complete</button>
+                            <button class="waypoint-action-btn skip-btn" onclick="skipWaypoint(${index})">⏭️ Skip</button>
+                        ` : `
+                            <button class="waypoint-action-btn undo-btn" onclick="undoWaypoint(${index})">↩️ Undo</button>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Check if all waypoints are done
+    if (waypoints.length > 0 && totalDone === waypoints.length) {
+        log('🎉 Hike completed! Save to My Hikes!');
+        document.getElementById('save-hike-btn').disabled = false;
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    } else if (totalDone > 0) {
+        // Enable save button if at least one waypoint is done
+        document.getElementById('save-hike-btn').disabled = false;
+    } else {
+        document.getElementById('save-hike-btn').disabled = true;
+    }
+	}
 
     // Initialize hike path line on map
     function initHikePathLine() {
@@ -1356,7 +1450,7 @@
     }
 
     // Reset hike tracking
-    function resetHikeTracking() {
+    /*function resetHikeTracking() {
         if (!confirm('Reset hike progress? All recorded data will be lost.')) return;
         
         isHiking = false;
@@ -1389,7 +1483,54 @@
         
         updateWaypointDisplay();
         log('Hike reset');
+    }*/
+	function resetHikeTracking() {
+    if (!confirm('Reset hike progress? All recorded data will be lost.')) return;
+    
+    isHiking = false;
+    completedWaypoints = [];
+    skippedWaypoints = [];
+    hikePath = [];
+    totalDistance = 0;
+    lastPosition = null;
+    startTime = null;
+    
+    // Reset UI
+    const startBtn = document.getElementById('start-hike-btn');
+    startBtn.innerHTML = '<span>▶</span> Start Hike';
+    startBtn.classList.remove('active');
+    document.getElementById('recording-indicator').classList.remove('active');
+    document.getElementById('distance-hiked').textContent = '0.0';
+    document.getElementById('tracking-status').textContent = 'Not tracking';
+    document.getElementById('save-hike-btn').disabled = true;
+    
+    // Clear path from map
+    if (map.getSource('hike-path')) {
+        map.getSource('hike-path').setData({
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: []
+            }
+        });
     }
+    
+    // Clear saved path layer if it exists
+    if (map.getSource('saved-path')) {
+        map.getSource('saved-path').setData({
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: []
+            }
+        });
+    }
+    
+    // Force update waypoint display to show all pending
+    updateWaypointDisplay();
+    
+    log('Hike reset');
+}
 
     // --- EXISTING FUNCTIONS (modified to support tracking) ---
 
@@ -1594,7 +1735,7 @@
         window.navigateImage = navigateImage;
     }
 
-    async function switchTrail(id) {
+    /*async function switchTrail(id) {
         try {
             const res = await fetch(`./trails/${id}.json?t=${Date.now()}`);
             const data = await res.json();
@@ -1652,7 +1793,109 @@
             log("JSON Error");
             console.error(e);
         }
+    }*/
+	
+	async function switchTrail(id) {
+    try {
+        const res = await fetch(`./trails/${id}.json?t=${Date.now()}`);
+        const data = await res.json();
+        currentTrailData = data;
+        document.getElementById('trail-title').innerText = data.name;
+        map.flyTo({ center: data.center, zoom: 14 });
+        
+        // Reset hike tracking when switching trails
+        if (isHiking) {
+            // If currently hiking, reset completely
+            resetHikeTracking();
+        } else {
+            // If not hiking, just clear the tracking data
+            completedWaypoints = [];
+            skippedWaypoints = [];
+            hikePath = [];
+            totalDistance = 0;
+            lastPosition = null;
+            startTime = null;
+            
+            // Reset UI elements
+            document.getElementById('start-hike-btn').innerHTML = '<span>▶</span> Start Hike';
+            document.getElementById('start-hike-btn').classList.remove('active');
+            document.getElementById('recording-indicator').classList.remove('active');
+            document.getElementById('distance-hiked').textContent = '0.0';
+            document.getElementById('tracking-status').textContent = 'Not tracking';
+            document.getElementById('save-hike-btn').disabled = true;
+            
+            // Clear path from map
+            if (map.getSource('hike-path')) {
+                map.getSource('hike-path').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: []
+                    }
+                });
+            }
+            
+            // Clear saved path layer if it exists
+            if (map.getSource('saved-path')) {
+                map.getSource('saved-path').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: []
+                    }
+                });
+            }
+        }
+        
+        // Update or create source and layer for waypoints
+        if (!map.getSource('hike-pts')) {
+            map.addSource('hike-pts', { type: 'geojson', data: data.waypoints });
+            map.addLayer({ 
+                id: 'hike-layer', 
+                type: 'circle', 
+                source: 'hike-pts', 
+                paint: { 
+                    'circle-radius': 12, 
+                    'circle-color': '#FF5252', 
+                    'circle-stroke-width': 3, 
+                    'circle-stroke-color': '#fff' 
+                }
+            });
+            
+            map.on('click', 'hike-layer', (e) => {
+                if (e.features && e.features.length > 0) {
+                    const feature = e.features[0];
+                    showWaypointPopup(feature, e.lngLat);
+                }
+            });
+            
+            map.on('mouseenter', 'hike-layer', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.on('mouseleave', 'hike-layer', () => {
+                map.getCanvas().style.cursor = '';
+            });
+        } else { 
+            map.getSource('hike-pts').setData(data.waypoints); 
+        }
+        
+        fetchWeather(data.center[0], data.center[1]);
+        
+        const url = new URL(window.location);
+        url.searchParams.set('trail', id);
+        window.history.pushState({}, '', url);
+        
+        // Force immediate update of waypoint display
+        updateWaypointDisplay();
+        
+        log(`Loaded trail: ${data.name}`);
+        
+    } catch(e) { 
+        log("JSON Error");
+        console.error(e);
     }
+}
 
     function viewTrailDetails() {
         const select = document.getElementById('trail-select');
